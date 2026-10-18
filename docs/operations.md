@@ -29,6 +29,10 @@ buffered. Overflow or retention expiry increments a loss counter and logs a warn
 An unset sink leaves events in the outbox and warns; the outbox is not an unlimited
 long-term audit archive. Configure retention/access policy at the external sink.
 
+The optional [private operations stack](operations-setup.md) includes a bounded
+OpenSearch archive, Prometheus rules, encrypted backups and isolated recovery
+drills. It keeps an explicit warning until a remote backup destination is supplied.
+
 ## Backup and restore
 
 Keep the Redis 7 AOF directory, including its manifest and incremental/base files,

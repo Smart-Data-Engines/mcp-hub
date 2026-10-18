@@ -1,0 +1,57 @@
+groups:
+  - name: hub
+    rules:
+      - alert: HubUnavailable
+        expr: up{job="hub"} == 0 or hub_ops_ready == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: 'MCP Hub is unavailable'}
+      - alert: HubUpstreamDisconnected
+        expr: hub_upstream_connected == 0
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: 'An MCP upstream is disconnected'}
+      - alert: HubAuditUnavailable
+        expr: hub_ops_audit_healthy == 0 or hub_audit_spool_entries > 1000
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: 'Audit delivery needs attention'}
+      - alert: HubAuditLoss
+        expr: increase(hub_audit_dropped_total[10m]) > 0
+        labels: {severity: critical}
+        annotations: {summary: 'Audit events were lost'}
+      - alert: HubBackupStale
+        expr: time() - hub_ops_backup_last_success_seconds > 7200 or hub_ops_backup_last_attempt_ok == 0
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: 'The backup is stale or its last attempt failed'}
+      - alert: HubBackupOffsiteMissing
+        expr: hub_ops_offsite_configured == 0
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: 'Backups have no off-host destination'}
+      - alert: HubRecoveryDrillStale
+        expr: time() - hub_ops_drill_last_success_seconds > 172800 or hub_ops_drill_last_attempt_ok == 0
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: 'The recovery drill is stale or failed'}
+      - alert: HubRepositoryCheckStale
+        expr: time() - hub_ops_check_last_success_seconds > 691200 or hub_ops_check_last_attempt_ok == 0
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: 'Backup repository verification is stale or failed'}
+      - alert: HubCertificateExpiring
+        expr: hub_ops_certificate_expiry_seconds - time() < 1814400
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: 'The private HTTPS certificate needs attention'}
+      - alert: HubDiskLow
+        expr: hub_ops_disk_free_ratio < 0.15
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: 'MCP Hub disk space is low'}
+      - alert: HubOperationsProbeStale
+        expr: time() - hub_ops_probe_timestamp_seconds > 180 or up{job="operations"} == 0 or absent(hub_ops_probe_timestamp_seconds)
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: 'The independent operations probe stopped reporting'}

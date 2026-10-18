@@ -1,0 +1,10 @@
+[Unit]
+Description=Schedule MCP Hub drill
+
+[Timer]
+OnCalendar=*-*-* 04:35:00
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

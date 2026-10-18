@@ -1,0 +1,32 @@
+rule_files: [prometheus-rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: hub_ops_backup_last_success_seconds
+        values: '1+0x10'
+      - series: hub_ops_backup_last_attempt_ok
+        values: '0+0x10'
+      - series: hub_ops_probe_timestamp_seconds
+        values: '1+0x10'
+      - series: 'up{job="operations"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: HubBackupStale
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations: {summary: 'The backup is stale or its last attempt failed'}
+      - eval_time: 7m
+        alertname: HubOperationsProbeStale
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations: {summary: 'The independent operations probe stopped reporting'}
+  - interval: 1m
+    input_series: []
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: HubOperationsProbeStale
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations: {summary: 'The independent operations probe stopped reporting'}

@@ -26,8 +26,8 @@ jobs:
           version: '0.13.1'
       - run: python scripts/check_private_boundaries.py
       - run: uv sync --frozen --extra dev
-      - run: uv run ruff check src tests
-      - run: uv run ruff format --check src tests
+      - run: uv run ruff check src tests deploy/operations.py deploy/restore_check.py
+      - run: uv run ruff format --check src tests deploy/operations.py deploy/restore_check.py
       - run: uv run mypy src/mcp_hub
       - run: uv run pytest -m 'not docker' --cov=mcp_hub --cov-report=term-missing
         env:
@@ -66,6 +66,10 @@ jobs:
         with:
           node-version: '22'
       - run: uv sync --frozen --extra dev
+      - name: Validate operational alert rules and failure scenarios
+        run: |
+          docker run --rm -v "$PWD/deploy:/config:ro" --workdir /config --entrypoint /bin/promtool prom/prometheus@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e check rules prometheus-rules.yml
+          docker run --rm -v "$PWD/deploy:/config:ro" --workdir /config --entrypoint /bin/promtool prom/prometheus@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e test rules prometheus-rules.test.yml
       - run: python3 scripts/dev.py
       - run: sudo -n env PYTHONDONTWRITEBYTECODE=1 MCP_HUB_RUN_DOCKER=1 .venv/bin/python -m pytest tests/integration/test_docker_runtime.py -p no:cacheprovider
       - run: npm ci && npx playwright install --with-deps chromium && npm test

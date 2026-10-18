@@ -1,0 +1,9 @@
+# Add to the gateway's existing Compose invocation after starting operations.
+services:
+  hub:
+    networks:
+      audit: {}
+networks:
+  audit:
+    external: true
+    name: mcp-hub-audit
