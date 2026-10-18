@@ -59,6 +59,20 @@ def test_encryption_key_rotation_and_failed_decryption_are_explicit():
         Cipher(new).decrypt(encrypted)
 
 
+def test_credentials_written_before_the_crypto_upgrade_remain_readable_and_rotatable():
+    # Generated with cryptography 48.0.1 using a public, synthetic test key.
+    key = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+    encrypted = (
+        "gAAAAABq1SNP7n8rw78HVdsZSjf8QurVzMujpXFnQLxoDOWvFzn6lf_560NdAPKHuBqhSpV9tDcx"
+        "IVGN2DYkpoi0nKZCd1gLneUQ4KLiBzWgc_2dhtgAM8kyMtvWuKBoXuXlgn-RRz9Mae9oJaTkDQujIdCvKeJyAw=="
+    )
+    expected = {"API_TOKEN": "legacy-test-value", "REGION": "eu-test-1"}
+    assert Cipher(key).decrypt(encrypted) == expected
+    new = Fernet.generate_key().decode()
+    rotated = Cipher(new + "," + key).rotate(encrypted)
+    assert Cipher(new).decrypt(rotated) == expected
+
+
 def test_category_heuristics_use_tokens_and_mcp_defaults():
     assert category({"name": "list_merge_requests"}) == ("read", False)
     assert category({"name": "list_deletions"}) == ("read", False)
