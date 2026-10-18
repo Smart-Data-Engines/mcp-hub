@@ -1,0 +1,47 @@
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 3
+    labels: [dependencies]
+    groups:
+      python-compatible:
+        update-types: [minor, patch]
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:15'
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 3
+    labels: [dependencies]
+    groups:
+      console-compatible:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:30'
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 3
+    labels: [dependencies]
+    groups:
+      actions:
+        patterns: ['*']
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:45'
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 3
+    labels: [dependencies]

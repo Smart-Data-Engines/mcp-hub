@@ -1,0 +1,20 @@
+services:
+  demo-idp:
+    image: mcp-hub:local
+    user: "${HUB_UID}:${HUB_GID}"
+    command: ["python", "/demo/idp.py"]
+    environment:
+      DEMO_ISSUER: http://localhost:8100
+      DEMO_CLIENT_ID: ${IDP_CLIENT_ID}
+      DEMO_CLIENT_SECRET: ${IDP_CLIENT_SECRET}
+      DEMO_KEY_PATH: /demo-state/signing.pem
+    volumes:
+      - ./examples/demo_idp.py:/demo/idp.py:ro
+      - ./.local/demo:/demo-state
+    ports: ["127.0.0.1:8100:8100"]
+    networks: [ingress]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+  hub:
+    depends_on:
+      demo-idp: {condition: service_started}

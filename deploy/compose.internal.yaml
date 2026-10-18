@@ -1,0 +1,26 @@
+# Extend compose.yaml. The application port remains bound to host loopback.
+# Terminate TLS on an interface restricted to your private network / VPN.
+services:
+  hub:
+    cpus: 0.5
+    mem_limit: 768m
+    pids_limit: 256
+    environment:
+      HUB_PORT: 8000
+      TRUSTED_PROXY_IPS: 127.0.0.1,172.28.40.1
+    volumes:
+      - ${REGISTRY_SSH_KEY_HOST:?Set registry key path}:/run/registry-key:ro
+      - ${REGISTRY_KNOWN_HOSTS_HOST:?Set known_hosts path}:/run/registry-known-hosts:ro
+  store:
+    cpus: 0.25
+    mem_limit: 768m
+    pids_limit: 128
+networks:
+  ingress:
+    ipam:
+      config:
+        - subnet: 172.28.40.0/24
+  state:
+    ipam:
+      config:
+        - subnet: 172.28.41.0/24

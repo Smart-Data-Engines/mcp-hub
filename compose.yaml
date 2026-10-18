@@ -1,0 +1,76 @@
+name: mcp-hub
+services:
+  store:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction", "--protected-mode", "yes", "--requirepass", "${STORE_PASSWORD:?Set STORE_PASSWORD in .env}"]
+    environment:
+      REDISCLI_AUTH: ${STORE_PASSWORD}
+    volumes: ["state:/data"]
+    networks: [state]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    restart: unless-stopped
+  hub:
+    build:
+      context: .
+      target: application
+    image: mcp-hub:local
+    container_name: mcp-hub
+    user: "${HUB_UID:-10001}:${HUB_GID:-10001}"
+    group_add: ["${DOCKER_GID:?Set DOCKER_GID to the group of /var/run/docker.sock}"]
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    env_file: .env
+    environment:
+      STORE_URL: redis://:${STORE_PASSWORD}@store:6379/0
+      HUB_BIND_HOST: hub-control
+      RUNTIME_HUB_CONTAINER: mcp-hub
+      SERVER_SOURCE_DIR: /var/lib/mcp-hub/servers
+      REGISTRY_LOCAL_PATH: /var/lib/mcp-hub/registry/registry.git
+      NETWORK_STATE: mcp-hub-state
+      NETWORK_INGRESS: mcp-hub-ingress
+      NETWORK_UPSTREAM_PREFIX: mcp-hub-upstream-
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${RUNTIME_HOST_SOURCE_ROOT:?Set the absolute host source path}:/var/lib/mcp-hub/servers
+      - ${REGISTRY_HOST_ROOT:?Set the absolute local registry path}:/var/lib/mcp-hub/registry
+    ports: ["127.0.0.1:${HUB_PORT:-8000}:8000"]
+    networks:
+      ingress:
+        aliases: [hub-control]
+      state: {}
+    depends_on:
+      store: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://hub-control:8000/ready', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+  upstream-image:
+    build:
+      context: .
+      target: upstream
+    image: mcp-hub-upstream:local
+    profiles: [build]
+    entrypoint: ["true"]
+volumes:
+  state: {}
+networks:
+  state:
+    name: mcp-hub-state
+    internal: true
+  ingress:
+    name: mcp-hub-ingress

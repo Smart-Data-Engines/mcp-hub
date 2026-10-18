@@ -1,0 +1,15 @@
+name: Feature request
+description: Suggest an improvement to MCP Hub.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What would you like to do?
+      description: Describe the use case and what makes it difficult today.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Suggested behavior
