@@ -80,6 +80,12 @@ def without_encryption_key(data: str) -> str:
     )
 
 
+def tls_context() -> ssl.SSLContext:
+    context = ssl.create_default_context()
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    return context
+
+
 def is_offsite(repository: str) -> bool:
     # A directory on another partition is still lost with the same machine.
     if repository.startswith(("b2:", "gs:", "azure:")):
@@ -129,7 +135,16 @@ class Operations:
         return json.loads(run(argv, timeout=timeout + 10))
 
     def status(self, task: str, **values) -> None:
-        path = self.root / (task + ".json")
+        # Keep paths independent of command-line strings, including error paths.
+        match task:
+            case "backup":
+                path = self.root / "backup.json"
+            case "drill":
+                path = self.root / "drill.json"
+            case "check":
+                path = self.root / "check.json"
+            case _:
+                raise ValueError("Unknown operator task")
         existing = json.loads(path.read_text()) if path.exists() else {}
         write(path, json.dumps({**existing, **values}, sort_keys=True).encode())
 
@@ -366,9 +381,7 @@ class Operations:
             target = urlsplit(self.config["public_url"])
             with (
                 socket.create_connection((target.hostname, target.port or 443), timeout=5) as raw,
-                ssl.create_default_context().wrap_socket(
-                    raw, server_hostname=target.hostname
-                ) as tls,
+                tls_context().wrap_socket(raw, server_hostname=target.hostname) as tls,
             ):
                 metrics["hub_ops_certificate_expiry_seconds"] = ssl.cert_time_to_seconds(
                     tls.getpeercert()["notAfter"]

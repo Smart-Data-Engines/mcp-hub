@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import ssl
 import subprocess
 from pathlib import Path
 
@@ -72,6 +73,22 @@ def test_command_failures_do_not_copy_sensitive_diagnostics_into_logs(monkeypatc
     with pytest.raises(RuntimeError, match="restic failed") as exc:
         ops.run(["restic", "backup"])
     assert "sensitive" not in str(exc.value)
+
+
+def test_status_paths_reject_traversal_before_any_filesystem_access(tmp_path):
+    operation = ops.Operations(
+        {"restic_environment": {"RESTIC_PASSWORD_FILE": "/secure/key"}}, tmp_path
+    )
+    with pytest.raises(ValueError, match="Unknown operator task"):
+        operation.status("../../escape", last_success=1)
+    assert not list(tmp_path.iterdir())
+
+
+def test_probe_tls_rejects_legacy_protocols_and_keeps_certificate_checks():
+    context = ops.tls_context()
+    assert context.minimum_version >= ssl.TLSVersion.TLSv1_2
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.check_hostname
 
 
 def test_failed_backup_does_not_rewrite_its_last_success(tmp_path):
