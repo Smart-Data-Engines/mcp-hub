@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS console
+FROM node:26-bookworm-slim AS console
 WORKDIR /console
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
