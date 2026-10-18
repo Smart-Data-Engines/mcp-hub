@@ -13,15 +13,12 @@ import fcntl
 import json
 import os
 import re
-import shutil
 import signal
 import socket
-import ssl
 import stat
 import subprocess
 import tempfile
 import time
-import urllib.request
 import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -78,12 +75,6 @@ def without_encryption_key(data: str) -> str:
         )
         + "\n"
     )
-
-
-def tls_context() -> ssl.SSLContext:
-    context = ssl.create_default_context()
-    context.minimum_version = ssl.TLSVersion.TLSv1_2
-    return context
 
 
 def is_offsite(repository: str) -> bool:
@@ -370,47 +361,10 @@ class Operations:
         )
         self.status("check", last_success=time.time(), last_attempt_ok=True)
 
-    def probe(self) -> None:
-        metrics = {"hub_ops_probe_timestamp_seconds": time.time()}
-        try:
-            with urllib.request.urlopen(self.config["ready_url"], timeout=5) as response:
-                metrics["hub_ops_ready"] = int(response.status == 200)
-        except Exception:
-            metrics["hub_ops_ready"] = 0
-        try:
-            target = urlsplit(self.config["public_url"])
-            with (
-                socket.create_connection((target.hostname, target.port or 443), timeout=5) as raw,
-                tls_context().wrap_socket(raw, server_hostname=target.hostname) as tls,
-            ):
-                metrics["hub_ops_certificate_expiry_seconds"] = ssl.cert_time_to_seconds(
-                    tls.getpeercert()["notAfter"]
-                )
-        except Exception:
-            metrics["hub_ops_certificate_expiry_seconds"] = 0
-        for label, path in (("data", str(self.root)), ("root", "/")):
-            usage = shutil.disk_usage(path)
-            metrics[f'hub_ops_disk_free_ratio{{mount="{label}"}}'] = usage.free / usage.total
-        for task in ("backup", "drill", "check"):
-            path = self.root / (task + ".json")
-            status = json.loads(path.read_text()) if path.exists() else {}
-            metrics[f"hub_ops_{task}_last_success_seconds"] = status.get("last_success", 0)
-            metrics[f"hub_ops_{task}_last_attempt_ok"] = int(status.get("last_attempt_ok", False))
-        metrics["hub_ops_offsite_configured"] = int(
-            is_offsite(self.environment["RESTIC_REPOSITORY"])
-        )
-        try:
-            health = self.audit_request("GET", "/_cluster/health", timeout=3)
-            metrics["hub_ops_audit_healthy"] = int(health["status"] == "green")
-        except Exception:
-            metrics["hub_ops_audit_healthy"] = 0
-        lines = "\n".join(f"{name} {value}" for name, value in sorted(metrics.items())) + "\n"
-        write(self.root / "metrics/hub.prom", lines.encode(), 0o644)
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("task", choices=("backup", "drill", "check", "probe"))
+    parser.add_argument("task", choices=("backup", "drill", "check"))
     task = parser.parse_args().task
     if os.geteuid() != 0:
         raise SystemExit("Root operator execution required")
@@ -431,11 +385,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, interrupted)
     operations = Operations(config)
     method = operations.check_repository if task == "check" else getattr(operations, task)
-    # Coordinate backups, rotation/deployment and recovery checks. Probes remain
-    # independent, so a stalled backup cannot hide its own freshness warning.
-    if task == "probe":
-        method()
-        return
+    # Serialize maintenance with deployments and key rotation.
     with open(config["deployment_lock"], "a") as lock:
         try:
             deadline = time.monotonic() + 45

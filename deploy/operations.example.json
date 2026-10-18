@@ -7,8 +7,6 @@
   "restore_check": "/usr/local/lib/mcp-hub/restore_check.py",
   "redis_image": "redis:7.4-alpine",
   "audit_snapshot_dir": "/srv/mcp-hub/shared/audit-snapshots",
-  "ready_url": "http://127.0.0.1:8000/ready",
-  "public_url": "https://hub.example.test:8443",
   "restic_environment": {
     "RESTIC_REPOSITORY": "/srv/mcp-hub/shared/operations/local-repository",
     "RESTIC_PASSWORD_FILE": "/etc/mcp-hub/restic-password",

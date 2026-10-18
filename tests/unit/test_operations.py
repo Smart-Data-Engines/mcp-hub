@@ -1,6 +1,5 @@
 import importlib.util
 import json
-import ssl
 import subprocess
 from pathlib import Path
 
@@ -23,7 +22,7 @@ _spec.loader.exec_module(ops)
         "rest:https://[::1]/backup",
     ],
 )
-def test_same_host_repositories_do_not_clear_the_offsite_warning(repository):
+def test_same_host_repositories_are_classified_as_local(repository):
     assert not ops.is_offsite(repository)
 
 
@@ -82,13 +81,6 @@ def test_status_paths_reject_traversal_before_any_filesystem_access(tmp_path):
     with pytest.raises(ValueError, match="Unknown operator task"):
         operation.status("../../escape", last_success=1)
     assert not list(tmp_path.iterdir())
-
-
-def test_probe_tls_rejects_legacy_protocols_and_keeps_certificate_checks():
-    context = ops.tls_context()
-    assert context.minimum_version >= ssl.TLSVersion.TLSv1_2
-    assert context.verify_mode == ssl.CERT_REQUIRED
-    assert context.check_hostname
 
 
 def test_failed_backup_does_not_rewrite_its_last_success(tmp_path):
