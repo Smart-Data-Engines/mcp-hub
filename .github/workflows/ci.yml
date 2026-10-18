@@ -1,6 +1,7 @@
 name: ci
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -69,5 +70,12 @@ jobs:
       - run: sudo -n env PYTHONDONTWRITEBYTECODE=1 MCP_HUB_RUN_DOCKER=1 .venv/bin/python -m pytest tests/integration/test_docker_runtime.py -p no:cacheprovider
       - run: npm ci && npx playwright install --with-deps chromium && npm test
         working-directory: frontend
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: browser-failure-diagnostics
+          path: frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - if: always()
         run: docker compose -f compose.yaml -f compose.demo.yaml down

@@ -47,6 +47,8 @@ class RequireHubSecret:
 
 
 async def heartbeat() -> None:
+    # Trusted operator configuration. Managed workers receive this endpoint from
+    # Runtime.start after Global Env is applied; HTTP/tool callers cannot set it.
     hub = os.environ.get("HUB_URL")
     if not hub:
         return
