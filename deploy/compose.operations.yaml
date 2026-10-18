@@ -1,4 +1,4 @@
-# Independent operator stack. Never publish the audit HTTP API on host ports.
+# Independent audit storage. Never publish its HTTP API on host ports.
 name: mcp-hub-operations
 services:
   audit:
@@ -11,69 +11,35 @@ services:
       OPENSEARCH_JAVA_OPTS: -Xms768m -Xmx768m
       path.repo: /snapshots
     volumes:
-      - audit-data:/usr/share/opensearch/data
-      - ${AUDIT_SNAPSHOT_DIR:?Set AUDIT_SNAPSHOT_DIR}:/snapshots
-    networks: [audit]
+    - audit-data:/usr/share/opensearch/data
+    - ${AUDIT_SNAPSHOT_DIR:?Set AUDIT_SNAPSHOT_DIR}:/snapshots
+    networks:
+    - audit
     cpus: 1.0
     mem_limit: 2g
     pids_limit: 512
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
     healthcheck:
-      test: [CMD, curl, --fail, --silent, 'http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=2s']
+      test:
+      - CMD
+      - curl
+      - --fail
+      - --silent
+      - http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=2s
       interval: 10s
       timeout: 5s
       retries: 30
-    logging: &logging
+    logging:
       driver: json-file
-      options: {max-size: 20m, max-file: '3'}
-    restart: unless-stopped
-  prometheus:
-    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
-    container_name: mcp-hub-prometheus
-    network_mode: host
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=30d
-      - --storage.tsdb.retention.size=2GB
-      - --web.listen-address=127.0.0.1:9098
-      - --web.external-url=/monitoring/
-      - --web.route-prefix=/monitoring/
-    volumes:
-      - ${OPS_CONFIG_DIR:?Set OPS_CONFIG_DIR}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ${OPS_CONFIG_DIR}/prometheus-rules.yml:/etc/prometheus/rules.yml:ro
-      - prometheus-data:/prometheus
-    cpus: 0.25
-    mem_limit: 384m
-    pids_limit: 128
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    logging: *logging
-    restart: unless-stopped
-  collector:
-    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
-    container_name: mcp-hub-operations-collector
-    network_mode: host
-    command:
-      - --web.listen-address=127.0.0.1:9108
-      - --collector.disable-defaults
-      - --collector.textfile
-      - --collector.textfile.directory=/metrics
-    volumes:
-      - ${OPS_CONFIG_DIR}/metrics:/metrics:ro
-    cpus: 0.1
-    mem_limit: 64m
-    pids_limit: 32
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    logging: *logging
+      options:
+        max-size: 20m
+        max-file: '3'
     restart: unless-stopped
 volumes:
   audit-data: {}
-  prometheus-data: {}
 networks:
   audit:
     name: mcp-hub-audit

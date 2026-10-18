@@ -66,10 +66,6 @@ jobs:
         with:
           node-version: '22'
       - run: uv sync --frozen --extra dev
-      - name: Validate operational alert rules and failure scenarios
-        run: |
-          docker run --rm -v "$PWD/deploy:/config:ro" --workdir /config --entrypoint /bin/promtool prom/prometheus@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e check rules prometheus-rules.yml
-          docker run --rm -v "$PWD/deploy:/config:ro" --workdir /config --entrypoint /bin/promtool prom/prometheus@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e test rules prometheus-rules.test.yml
       - run: python3 scripts/dev.py
       - run: sudo -n env PYTHONDONTWRITEBYTECODE=1 MCP_HUB_RUN_DOCKER=1 .venv/bin/python -m pytest tests/integration/test_docker_runtime.py -p no:cacheprovider
       - run: npm ci && npx playwright install --with-deps chromium && npm test
