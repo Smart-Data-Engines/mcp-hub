@@ -27,6 +27,7 @@ issuer = os.environ.get("DEMO_ISSUER", "http://localhost:8100")
 client_id = os.environ.get("DEMO_CLIENT_ID", "mcp-hub-demo")
 client_secret = os.environ["DEMO_CLIENT_SECRET"]
 redirect_uri = os.environ.get("DEMO_REDIRECT_URI", "http://localhost:8000/oauth/oidc/callback")
+# Trusted local-demo operator configuration; no HTTP parameter selects this file.
 key_path = Path(os.environ.get("DEMO_KEY_PATH", "/tmp/mcp-hub-demo-key.pem"))
 if not key_path.exists():
     key_path.parent.mkdir(parents=True, exist_ok=True)

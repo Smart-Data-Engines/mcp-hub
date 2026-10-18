@@ -47,12 +47,38 @@ export async function signIn(page: Page, account = 'Admin', returnTo = '') {
   throw new Error('Company sign-in remained rate limited after five server-directed retries.');
 }
 export async function navigate(page: Page, label: string) {
-  const menu = page.getByRole('button', { name: 'Menu', exact: true });
-  if (await menu.isVisible()) await menu.click();
+  const menu = page.locator('.mobile-menu-toggle');
+  // Read the destination from the DOM: collapsed links have no accessible name.
+  const entry = page.locator('#workspace-navigation a').filter({ hasText: label });
+  const destination = await entry.getAttribute('href');
+  expect(destination).toBeTruthy();
+  if ((new URL(page.url()).hash || '#overview') === destination) {
+    await expect(entry).toHaveAttribute('aria-current', 'page');
+    return;
+  }
+  if (await menu.isVisible()) {
+    if ((await menu.getAttribute('aria-expanded')) !== 'true') await menu.click();
+    await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  }
   await page
     .getByRole('navigation', { name: 'Workspace navigation' })
     .getByRole('link', { name: label, exact: true })
     .click();
+  // Navigation can pause at the draft guard. Otherwise wait for the route and
+  // its menu-closing React effect before starting another navigation.
+  await expect
+    .poll(async () => {
+      if (
+        await page.getByRole('dialog', { name: 'Leave without saving?', exact: true }).isVisible()
+      )
+        return true;
+      return (
+        new URL(page.url()).hash === destination &&
+        (await entry.getAttribute('aria-current')) === 'page' &&
+        (await menu.getAttribute('aria-expanded')) === 'false'
+      );
+    })
+    .toBe(true);
 }
 export async function request<T = Record<string, unknown>>(
   page: Page,

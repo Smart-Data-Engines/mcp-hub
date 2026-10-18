@@ -9,3 +9,6 @@ Security fixes target the latest `main` branch until versioned releases establis
 a separate support policy. Company deployments should validate their identity
 provider, access grants, network boundaries and recovery procedure as described
 in [the deployment guide](docs/deployment.md).
+
+The [security boundary notes](docs/security-model.md) describe trusted operator
+configuration and the scope of static-analysis review.
