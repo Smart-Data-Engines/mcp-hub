@@ -39,7 +39,8 @@ rejected request cannot hang a test indefinitely.
 Reproduce the backend with `MCP_HUB_RUN_LIVE=1 uv run pytest -m 'not docker'`, plus Ruff and mypy
 as in the README. Console build and browser/Docker acceptance run in the required CI checks.
 The publication guard checks the index and outgoing history for private/generated artifacts.
-Qualification details and mutation results are recorded alongside this document before merge.
+[Qualification details and mutation results](qualification/2026-10-23-security/README.md)
+record the source identity, failing reproductions and controls.
 
 ## Upgrade and operational boundaries
 

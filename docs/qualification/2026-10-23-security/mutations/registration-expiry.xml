@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.167" timestamp="2026-10-23T21:04:35.719513+02:00" hostname="km-ThinkPad-E570"><testcase classname="tests.integration.test_security_capacity" name="test_unused_registration_expires_but_successful_exchange_extends_it" time="0.049"><failure message="assert 0 &lt; -1">tests/integration/test_security_capacity.py:36: in test_unused_registration_expires_but_successful_exchange_extends_it
+    assert 0 &lt; await harness.hub.redis.ttl(key) &lt;= 60
+E   assert 0 &lt; -1</failure></testcase></testsuite></testsuites>

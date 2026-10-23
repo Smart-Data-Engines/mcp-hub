@@ -1,0 +1,13 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_explicit_ca_extends_curated_trust_without_ambient_roots _________
+tests/unit/test_trust_boundary.py:44: in test_explicit_ca_extends_curated_trust_without_ambient_roots
+    assert ambient.public_bytes(serialization.Encoding.DER) not in roots
+E   AssertionError: assert b'0\x82\x02\xd90\x82\x01\xc1\xa0\x03\x02\x01\x02\x02\x14/\xb8|\xf5\xceOE\xe8\xf0\xcb4z-q3\x92\xe25fl0\r\x06\t*\x86H\x8...7$\xe6\x7f\x06\xf9\xab\x1c\xd3\xfcT\xef\xec\xf5\x88c\x9c\xb3ATa03o\xf3M\xc2v*\x9d\xd0\xea$`\x84*D\xca\x8a\x8e\xaa.\xb2' not in [b'0\x82\x02\xd90\x82\x01\xc1\xa0\x03\x02\x01\x02\x02\x14/\xb8|\xf5\xceOE\xe8\xf0\xcb4z-q3\x92\xe25fl0\r\x06\t*\x86H\x...b#\x9cA&sN\xb8\xda$\r?sc\xea\n\xab\xf6C!\x89\xf90\xc2\x1fbX\xb0\xb9\x16\x00g\xc4\x17\x92\xe3\x08\x88\xa0y\x9b\xa8\xd7']
+E    +  where b'0\x82\x02\xd90\x82\x01\xc1\xa0\x03\x02\x01\x02\x02\x14/\xb8|\xf5\xceOE\xe8\xf0\xcb4z-q3\x92\xe25fl0\r\x06\t*\x86H\x8...7$\xe6\x7f\x06\xf9\xab\x1c\xd3\xfcT\xef\xec\xf5\x88c\x9c\xb3ATa03o\xf3M\xc2v*\x9d\xd0\xea$`\x84*D\xca\x8a\x8e\xaa.\xb2' = <built-in method public_bytes of cryptography.hazmat.bindings._rust.x509.Certificate object at 0x7cfa57bbe190>(Encoding.DER)
+E    +    where <built-in method public_bytes of cryptography.hazmat.bindings._rust.x509.Certificate object at 0x7cfa57bbe190> = <Certificate(subject=<Name(CN=synthetic-ambient)>, ...)>.public_bytes
+E    +    and   Encoding.DER = <class 'cryptography.hazmat.primitives._serialization.Encoding'>.DER
+E    +      where <class 'cryptography.hazmat.primitives._serialization.Encoding'> = serialization.Encoding
+=========================== short test summary info ============================
+FAILED tests/unit/test_trust_boundary.py::test_explicit_ca_extends_curated_trust_without_ambient_roots
+1 failed in 0.33s

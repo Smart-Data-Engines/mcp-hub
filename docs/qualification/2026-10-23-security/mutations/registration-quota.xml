@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.190" timestamp="2026-10-23T21:04:33.336285+02:00" hostname="km-ThinkPad-E570"><testcase classname="tests.integration.test_security_capacity" name="test_public_client_registration_has_an_atomic_storage_budget" time="0.056"><failure message="assert 0 == 1&#10; +  where 0 = sum(&lt;generator object test_public_client_registration_has_an_atomic_storage_budget.&lt;locals&gt;.&lt;genexpr&gt; at 0x77f05f975ee0&gt;)">tests/integration/test_security_capacity.py:28: in test_public_client_registration_has_an_atomic_storage_budget
+    assert sum(isinstance(result, OAuthError) for result in outcomes) == 1
+E   assert 0 == 1
+E    +  where 0 = sum(&lt;generator object test_public_client_registration_has_an_atomic_storage_budget.&lt;locals&gt;.&lt;genexpr&gt; at 0x77f05f975ee0&gt;)</failure></testcase></testsuite></testsuites>

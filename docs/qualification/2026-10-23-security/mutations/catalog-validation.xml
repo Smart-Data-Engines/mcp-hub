@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.181" timestamp="2026-10-23T21:04:48.338652+02:00" hostname="km-ThinkPad-E570"><testcase classname="tests.integration.test_security_capacity" name="test_failed_catalog_validation_does_not_keep_old_tools_callable" time="0.063"><failure message="assert (False)">tests/integration/test_security_capacity.py:126: in test_failed_catalog_validation_does_not_keep_old_tools_callable
+    assert result["isError"] and result["_meta"]["hub/error"] == "catalog_unavailable"
+E   assert (False)</failure></testcase></testsuite></testsuites>

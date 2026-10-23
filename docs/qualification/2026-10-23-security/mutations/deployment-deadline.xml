@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.420" timestamp="2026-10-23T21:04:53.487715+02:00" hostname="km-ThinkPad-E570"><testcase classname="tests.integration.test_security_capacity" name="test_legacy_server_timeout_cannot_escape_the_global_deadline" time="0.263"><failure message="assert (False)">tests/integration/test_security_capacity.py:223: in test_legacy_server_timeout_cannot_escape_the_global_deadline
+    assert result["isError"] and result["_meta"]["hub/error"] == "timeout"
+E   assert (False)</failure></testcase></testsuite></testsuites>

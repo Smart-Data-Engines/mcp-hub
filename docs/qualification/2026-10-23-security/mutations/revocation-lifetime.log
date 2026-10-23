@@ -1,0 +1,10 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_revocation_index_cannot_expire_before_access_tokens ___________
+tests/unit/test_trust_boundary.py:66: in test_revocation_index_cannot_expire_before_access_tokens
+    with pytest.raises(ValueError, match="revocation"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE ValueError
+=========================== short test summary info ============================
+FAILED tests/unit/test_trust_boundary.py::test_revocation_index_cannot_expire_before_access_tokens
+1 failed in 0.28s

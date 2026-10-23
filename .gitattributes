@@ -1,0 +1,3 @@
+# Preserve the exact output bytes covered by qualification hashes, including pytest spacing.
+docs/qualification/2026-10-23-security/mutations/*.log -text -whitespace
+docs/qualification/2026-10-23-security/mutations/*.xml -text -whitespace

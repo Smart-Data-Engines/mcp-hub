@@ -1,0 +1,9 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_legacy_server_timeout_cannot_escape_the_global_deadline _________
+tests/integration/test_security_capacity.py:223: in test_legacy_server_timeout_cannot_escape_the_global_deadline
+    assert result["isError"] and result["_meta"]["hub/error"] == "timeout"
+E   assert (False)
+=========================== short test summary info ============================
+FAILED tests/integration/test_security_capacity.py::test_legacy_server_timeout_cannot_escape_the_global_deadline
+1 failed in 0.59s

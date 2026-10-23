@@ -1,0 +1,12 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___ test_large_request_cannot_expand_audit_storage_without_bound[arguments] ____
+tests/integration/test_security_capacity.py:85: in test_large_request_cannot_expand_audit_storage_without_bound
+    assert len(raw.encode()) <= 8192
+E   assert 52034 <= 8192
+E    +  where 52034 = len(b'{"@timestamp":"2026-10-23T19:04:46.051248+00:00","arguments":{"query":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...size":50511,"server":"alpha","status":"ok","token_type":"human","tool":"alpha.lookup","username":"alice@example.test"}')
+E    +    where b'{"@timestamp":"2026-10-23T19:04:46.051248+00:00","arguments":{"query":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...size":50511,"server":"alpha","status":"ok","token_type":"human","tool":"alpha.lookup","username":"alice@example.test"}' = <built-in method encode of str object at 0x2efb5c10>()
+E    +      where <built-in method encode of str object at 0x2efb5c10> = '{"@timestamp":"2026-10-23T19:04:46.051248+00:00","arguments":{"query":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...size":50511,"server":"alpha","status":"ok","token_type":"human","tool":"alpha.lookup","username":"alice@example.test"}'.encode
+=========================== short test summary info ============================
+FAILED tests/integration/test_security_capacity.py::test_large_request_cannot_expand_audit_storage_without_bound[arguments]
+1 failed in 0.44s

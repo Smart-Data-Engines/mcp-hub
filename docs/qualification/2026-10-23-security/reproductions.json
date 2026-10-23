@@ -1,0 +1,178 @@
+{
+  "security-before": {
+    "failures": [
+      {
+        "test": "test_unannotated_tool_is_never_assumed_read_only",
+        "failure": "AssertionError: assert ('read', False) == ('destructive', False)"
+      },
+      {
+        "test": "test_unannotated_tool_is_never_assumed_read_only",
+        "failure": "AssertionError: assert ('read', False) == ('destructive', False)"
+      },
+      {
+        "test": "test_unannotated_tool_is_never_assumed_read_only",
+        "failure": "AssertionError: assert ('read', False) == ('destructive', False)"
+      },
+      {
+        "test": "test_stale_catalog_cannot_turn_an_unannotated_tool_into_a_read",
+        "failure": "assert (False)"
+      },
+      {
+        "test": "test_destructive_approval_cannot_follow_a_changed_execution_context",
+        "failure": "assert (False)"
+      },
+      {
+        "test": "test_destructive_approval_cannot_follow_a_changed_execution_context",
+        "failure": "assert (False)"
+      },
+      {
+        "test": "test_destructive_approval_cannot_follow_a_changed_execution_context",
+        "failure": "assert (False)"
+      },
+      {
+        "test": "test_destructive_approval_cannot_follow_a_changed_execution_context",
+        "failure": "assert (False)"
+      },
+      {
+        "test": "test_destructive_approval_cannot_follow_a_changed_execution_context",
+        "failure": "assert (False)"
+      },
+      {
+        "test": "test_destructive_approval_cannot_follow_a_changed_execution_context",
+        "failure": "assert (False)"
+      },
+      {
+        "test": "test_cached_write_still_enforces_current_personal_credential_policy",
+        "failure": "assert (False)"
+      },
+      {
+        "test": "test_cached_write_cannot_be_replayed_for_a_different_connection",
+        "failure": "assert (False)"
+      },
+      {
+        "test": "test_admin_policy_removes_the_subjects_previous_verified_email_binding",
+        "failure": "AssertionError: assert not True"
+      },
+      {
+        "test": "test_admin_policy_removes_the_subjects_previous_verified_email_binding",
+        "failure": "AssertionError: assert not True"
+      },
+      {
+        "test": "test_credential_document_size_is_bounded_before_persistence",
+        "failure": "assert 204 == 413"
+      },
+      {
+        "test": "test_concurrent_credential_creation_cannot_overfill_the_principal_budget",
+        "failure": "assert 0 == 1"
+      },
+      {
+        "test": "test_preference_budget_can_be_reclaimed_without_credential_fallback",
+        "failure": "Failed: DID NOT RAISE HubError"
+      },
+      {
+        "test": "test_invalid_idp_identity_never_provisions_or_issues_code",
+        "failure": "AssertionError: <!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Connect an application \u00b7 MCP Hub</title><style>"
+      }
+    ],
+    "setup_errors": 0
+  },
+  "definitions-before": {
+    "failures": [
+      {
+        "test": "test_adapter_output_schema_is_not_executed_by_the_hub",
+        "failure": "RuntimeError: Invalid schema for tool lookup: '[' is not a 'regex'"
+      },
+      {
+        "test": "test_adapter_output_schema_is_not_executed_by_the_hub",
+        "failure": "RecursionError: maximum recursion depth exceeded"
+      },
+      {
+        "test": "test_adapter_output_schema_is_not_executed_by_the_hub",
+        "failure": "RuntimeError: Invalid schema for tool lookup: Unresolvable: https://must-not-fetch.invalid/schema"
+      },
+      {
+        "test": "test_upstream_structured_content_is_still_subject_to_json_limits",
+        "failure": "Failed: DID NOT RAISE HubError"
+      },
+      {
+        "test": "test_read_only_client_cannot_dispatch_an_unannotated_effect",
+        "failure": "AssertionError('assert (False)\\n +  where False = CallToolResult(meta={\\'hub/provenance\\': {\\'source\\': \\'unannotated.lookup\\', \\'category\\': \\'read\\', \\'size_chars\\': 114, \\'durati...ource\":\"unannotated.lookup\"}\\', annotations=None, meta=N"
+      },
+      {
+        "test": "test_controller_yaml_is_bounded_before_construction",
+        "failure": "Failed: DID NOT RAISE HubError"
+      },
+      {
+        "test": "test_controller_yaml_is_bounded_before_construction",
+        "failure": "Failed: DID NOT RAISE HubError"
+      },
+      {
+        "test": "test_controller_yaml_is_bounded_before_construction",
+        "failure": "Failed: DID NOT RAISE HubError"
+      },
+      {
+        "test": "test_controller_yaml_is_bounded_before_construction",
+        "failure": "Failed: DID NOT RAISE HubError"
+      },
+      {
+        "test": "test_an_adapter_owner_cannot_feed_yaml_aliases_to_the_controller",
+        "failure": "assert 200 == 422"
+      },
+      {
+        "test": "test_git_snapshot_limits_are_checked_before_loading_blobs",
+        "failure": "AssertionError: assert not [('cat-file', 'blob', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'), ('cat-file', 'blob', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbb...b', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'), ('cat-file', 'blob', 'bbbbbbbbbbbbbbbbbbbbb"
+      },
+      {
+        "test": "test_git_snapshot_limits_are_checked_before_loading_blobs",
+        "failure": "AssertionError: assert not [('cat-file', 'blob', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'), ('cat-file', 'blob', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbb...b', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'), ('cat-file', 'blob', 'bbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "setup_errors": 0
+  },
+  "capacity-before": {
+    "failures": [
+      {
+        "test": "test_public_client_registration_has_an_atomic_storage_budget",
+        "failure": "assert 0 == 1"
+      },
+      {
+        "test": "test_unused_registration_expires_but_successful_exchange_extends_it",
+        "failure": "assert 0 < -1"
+      },
+      {
+        "test": "test_expired_client_cannot_race_code_exchange_into_new_tokens",
+        "failure": "assert (200 == 401)"
+      },
+      {
+        "test": "test_large_request_cannot_expand_audit_storage_without_bound",
+        "failure": "assert 52034 <= 8192"
+      },
+      {
+        "test": "test_large_request_cannot_expand_audit_storage_without_bound",
+        "failure": "assert 51522 <= 8192"
+      },
+      {
+        "test": "test_approval_storage_rejects_arguments_too_large_to_review",
+        "failure": "AssertionError: assert 'blocked_approval' == 'approval_too_large'"
+      },
+      {
+        "test": "test_failed_catalog_validation_does_not_keep_old_tools_callable",
+        "failure": "assert (False)"
+      }
+    ],
+    "setup_errors": 0
+  },
+  "namespace-before": {
+    "failures": [
+      {
+        "test": "test_service_names_cannot_overwrite_or_delete_credential_bookkeeping",
+        "failure": "AssertionError: assert [] == ['ordinary']"
+      },
+      {
+        "test": "test_service_names_cannot_overwrite_or_delete_credential_bookkeeping",
+        "failure": "KeyError: 'ordinary'"
+      }
+    ],
+    "setup_errors": 0
+  }
+}

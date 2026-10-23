@@ -1,0 +1,10 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_public_client_registration_has_an_atomic_storage_budget _________
+tests/integration/test_security_capacity.py:28: in test_public_client_registration_has_an_atomic_storage_budget
+    assert sum(isinstance(result, OAuthError) for result in outcomes) == 1
+E   assert 0 == 1
+E    +  where 0 = sum(<generator object test_public_client_registration_has_an_atomic_storage_budget.<locals>.<genexpr> at 0x77f05f975ee0>)
+=========================== short test summary info ============================
+FAILED tests/integration/test_security_capacity.py::test_public_client_registration_has_an_atomic_storage_budget
+1 failed in 0.35s

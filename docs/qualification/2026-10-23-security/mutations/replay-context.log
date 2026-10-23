@@ -1,0 +1,9 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_cached_write_cannot_be_replayed_for_a_different_connection ________
+tests/integration/test_execution_context.py:129: in test_cached_write_cannot_be_replayed_for_a_different_connection
+    assert result["isError"] and result["_meta"]["hub/error"] == "idempotency_context_changed"
+E   assert (False)
+=========================== short test summary info ============================
+FAILED tests/integration/test_execution_context.py::test_cached_write_cannot_be_replayed_for_a_different_connection
+1 failed in 0.40s

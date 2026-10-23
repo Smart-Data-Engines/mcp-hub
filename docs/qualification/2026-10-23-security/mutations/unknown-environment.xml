@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.101" timestamp="2026-10-23T21:04:58.594306+02:00" hostname="km-ThinkPad-E570"><testcase classname="tests.unit.test_trust_boundary" name="test_misspelled_environment_cannot_skip_production_checks[prod]" time="0.006"><failure message="Failed: DID NOT RAISE ValueError">tests/unit/test_trust_boundary.py:73: in test_misspelled_environment_cannot_skip_production_checks
+    with pytest.raises(ValueError, match="ENVIRONMENT"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE ValueError</failure></testcase></testsuite></testsuites>

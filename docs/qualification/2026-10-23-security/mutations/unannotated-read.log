@@ -1,0 +1,12 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_unannotated_tool_is_never_assumed_read_only[execute_sql] _________
+tests/integration/test_execution_context.py:15: in test_unannotated_tool_is_never_assumed_read_only
+    assert category({"name": name}) == ("destructive", False)
+E   AssertionError: assert ('read', False) == ('destructive', False)
+E     
+E     At index 0 diff: 'read' != 'destructive'
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/integration/test_execution_context.py::test_unannotated_tool_is_never_assumed_read_only[execute_sql]
+1 failed in 0.34s
