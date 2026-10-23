@@ -9,7 +9,7 @@ description = "An identity-aware MCP gateway and isolated server runtime"
 requires-python = ">=3.13"
 license = "Apache-2.0"
 dependencies = [
-  "mcp>=1.30,<2", "starlette>=1.8,<2", "uvicorn>=0.35,<1",
+  "mcp>=1.30,<3", "starlette>=1.8,<2", "uvicorn>=0.35,<1",
   "httpx>=0.28,<1", "redis>=6,<8", "cryptography>=50,<51",
   "certifi>=2026.10.19",
   "pydantic>=2.11,<3", "pydantic-settings>=2.9,<3", "PyJWT[crypto]>=2.10,<3",
