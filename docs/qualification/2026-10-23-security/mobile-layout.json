@@ -1,0 +1,15 @@
+{
+  "baseline": "2f3410c6bdf75e75b7e3bc88380b1a27f8743d0c",
+  "initial_ci_run": 40009550927,
+  "initial_container_tests": "passed",
+  "initial_browser_result": "14 passed, 1 failed: approval revision overflow at 320 px",
+  "synthetic_layout_only": true,
+  "before": {"width": 320, "scroll": 331},
+  "after": {"width": 320, "scroll": 320},
+  "source_files": {
+    "frontend/src/main.tsx": "6c92acf43b57bcda89b44062e61cd8f61358e1c3c799209b8a0653087b78141b",
+    "frontend/src/style.css": "ab26b8585591663adfa7980f4d7476fb347f2828fb195b5220127efdaea8267e"
+  },
+  "production_build": "passed",
+  "prettier": "passed"
+}

@@ -892,7 +892,7 @@ function Approvals({ me, run }: { me: Me; run: Run }) {
               {item.four_eyes ? ' · a different human must approve' : ''}
             </p>
             {item.execution_summary && (
-              <p className="muted">
+              <p className="muted approval-context">
                 Connection:{' '}
                 {item.execution_summary.credentials_source === 'session_metadata'
                   ? 'credentials supplied with this request'

@@ -33,6 +33,14 @@ The workstation lacked Buildx and had limited disk space, so native Docker/brows
 belongs to the repository's required `docker-acceptance` check on a fresh runner. Merge also
 requires both Python jobs, console and CodeQL. Passing these checks is not a production rollout.
 
+The first CI attempt (`40009550927`) passed both Python jobs, dependency scans, CodeQL and
+native Docker isolation/recovery. Browser acceptance found a mobile overflow caused by the
+new full revision string on an approval card. A scoped wrapping rule fixes it; the recorded
+Chrome layout probe changed document width from 331 to 320 at a 320-pixel viewport.
+`mobile-layout.json` identifies that follow-up's frontend source hashes separately from the
+backend/mutation checkpoint. Console build and formatting passed again. The complete browser
+suite is rerun in CI for the corrected head; the initial failure is not counted as acceptance.
+
 Reproduce:
 
 ```sh
