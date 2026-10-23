@@ -1,0 +1,9 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_stale_catalog_cannot_turn_an_unannotated_tool_into_a_read ________
+tests/integration/test_execution_context.py:31: in test_stale_catalog_cannot_turn_an_unannotated_tool_into_a_read
+    assert result["isError"] and result["_meta"]["hub/error"] == "blocked_acl"
+E   assert (False)
+=========================== short test summary info ============================
+FAILED tests/integration/test_execution_context.py::test_stale_catalog_cannot_turn_an_unannotated_tool_into_a_read
+1 failed in 0.36s

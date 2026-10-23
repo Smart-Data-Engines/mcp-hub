@@ -408,10 +408,12 @@ async def gateway_core():
                         "name": "write",
                         "inputSchema": schema,
                         "category": "write",
+                        "annotations": {"readOnlyHint": False, "destructiveHint": False},
                         "accepts_credentials": True,
                     }
                 ],
                 "status": "connected",
+                "tools_validated": True,
                 "policy": "both",
             }
         }
@@ -488,7 +490,7 @@ async def test_shutdown_finishes_or_explicitly_reports_interruption(cancel, quer
 
     gateway.upstreams.sessions["a"] = Session()
     task = asyncio.create_task(gateway.call("a.write", {"query": query}, ctx))
-    await started.wait()
+    await asyncio.wait_for(started.wait(), timeout=2)
     gateway.draining = True
     if cancel:
         task.cancel()

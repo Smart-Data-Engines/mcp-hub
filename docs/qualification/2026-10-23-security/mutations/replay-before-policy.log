@@ -1,0 +1,9 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_cached_write_still_enforces_current_personal_credential_policy ______
+tests/integration/test_execution_context.py:119: in test_cached_write_still_enforces_current_personal_credential_policy
+    assert result["isError"] and result["_meta"]["hub/error"] == "credentials_required"
+E   assert (False)
+=========================== short test summary info ============================
+FAILED tests/integration/test_execution_context.py::test_cached_write_still_enforces_current_personal_credential_policy
+1 failed in 0.43s

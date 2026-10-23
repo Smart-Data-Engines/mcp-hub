@@ -111,6 +111,9 @@ small {
 .muted {
   color: var(--muted);
 }
+.approval-context {
+  overflow-wrap: anywhere;
+}
 code,
 pre,
 textarea {

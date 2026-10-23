@@ -1,0 +1,9 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_unused_registration_expires_but_successful_exchange_extends_it ______
+tests/integration/test_security_capacity.py:36: in test_unused_registration_expires_but_successful_exchange_extends_it
+    assert 0 < await harness.hub.redis.ttl(key) <= 60
+E   assert 0 < -1
+=========================== short test summary info ============================
+FAILED tests/integration/test_security_capacity.py::test_unused_registration_expires_but_successful_exchange_extends_it
+1 failed in 0.37s

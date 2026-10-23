@@ -1,0 +1,10 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_controller_yaml_is_bounded_before_construction[alias] __________
+tests/integration/test_untrusted_definitions.py:153: in test_controller_yaml_is_bounded_before_construction
+    with pytest.raises(HubError):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE HubError
+=========================== short test summary info ============================
+FAILED tests/integration/test_untrusted_definitions.py::test_controller_yaml_is_bounded_before_construction[alias]
+1 failed in 0.34s

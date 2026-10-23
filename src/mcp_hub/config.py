@@ -87,6 +87,14 @@ class Settings:
     hub_port: int = 8000
     registration_port: int = 8001
     max_servers_per_owner: int = 10
+    max_credential_bytes: int = 16384
+    max_credential_services: int = 32
+    max_credential_preferences: int = 64
+    credential_write_rate_limit: int = 60
+    max_oauth_clients: int = 1024
+    oauth_registration_ttl: int = 3600
+    max_audit_event_bytes: int = 8192
+    max_approval_argument_bytes: int = 16384
     frontend_dir: str = "frontend/dist"
     otel_exporter_otlp_endpoint: str = ""
     hub_ca_bundle: str = ""
@@ -141,6 +149,29 @@ class Settings:
         return settings
 
     def validate(self) -> None:
+        if self.access_token_ttl > self.refresh_token_ttl:
+            raise ValueError("ACCESS_TOKEN_TTL must not outlive the refresh/revocation index")
+        if self.environment not in {"production", "development"}:
+            raise ValueError("ENVIRONMENT must be production or development")
+        if not 1024 <= self.max_credential_bytes <= 65536:
+            raise ValueError("MAX_CREDENTIAL_BYTES must be between 1024 and 65536")
+        if not (
+            1 <= self.max_credential_services <= 1024
+            and 1 <= self.max_credential_preferences <= 1024
+        ):
+            raise ValueError("Personal credential/preference limits must be between 1 and 1024")
+        if not 1 <= self.credential_write_rate_limit <= 1000:
+            raise ValueError("CREDENTIAL_WRITE_RATE_LIMIT must be between 1 and 1000")
+        if (
+            not 1 <= self.max_oauth_clients <= 10000
+            or not 60 <= self.oauth_registration_ttl <= 86400
+        ):
+            raise ValueError("OAuth registration count or lifetime is outside its supported bounds")
+        if (
+            not 2048 <= self.max_audit_event_bytes <= 65536
+            or not 1024 <= self.max_approval_argument_bytes <= 65536
+        ):
+            raise ValueError("Audit/approval byte limits are outside their supported bounds")
         if not self.store_url.startswith(("redis://", "rediss://")):
             raise ValueError("STORE_URL must identify a Redis server")
         if not self.credentials_encryption_key:

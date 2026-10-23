@@ -1,0 +1,9 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_failed_catalog_validation_does_not_keep_old_tools_callable ________
+tests/integration/test_security_capacity.py:126: in test_failed_catalog_validation_does_not_keep_old_tools_callable
+    assert result["isError"] and result["_meta"]["hub/error"] == "catalog_unavailable"
+E   assert (False)
+=========================== short test summary info ============================
+FAILED tests/integration/test_security_capacity.py::test_failed_catalog_validation_does_not_keep_old_tools_callable
+1 failed in 0.34s

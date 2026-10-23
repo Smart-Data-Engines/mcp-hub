@@ -854,9 +854,10 @@ function Approvals({ me, run }: { me: Me; run: Run }) {
     id: string;
     tool: string;
     status: string;
-    principal: { username: string };
+    principal: { username: string; client_id?: string };
     arguments_summary: unknown;
     four_eyes: boolean;
+    execution_summary?: { credentials_source: string; code_version: string };
   }
   const [items, setItems] = useState<Approval[]>([]);
   const load = useCallback(
@@ -890,6 +891,18 @@ function Approvals({ me, run }: { me: Me; run: Run }) {
               Requested by {item.principal.username}
               {item.four_eyes ? ' · a different human must approve' : ''}
             </p>
+            {item.execution_summary && (
+              <p className="muted approval-context">
+                Connection:{' '}
+                {item.execution_summary.credentials_source === 'session_metadata'
+                  ? 'credentials supplied with this request'
+                  : item.execution_summary.credentials_source === 'store'
+                    ? 'saved personal credentials'
+                    : 'server connection'}
+                {' · '}Revision: {item.execution_summary.code_version || 'not declared'}
+                {item.principal.client_id && <> · Client: {item.principal.client_id}</>}
+              </p>
+            )}
             <Code value={item.arguments_summary} />
             <small className="muted">{item.id}</small>
             {item.status === 'pending' && (

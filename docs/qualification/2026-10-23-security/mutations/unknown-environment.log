@@ -1,0 +1,10 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_misspelled_environment_cannot_skip_production_checks[prod] ________
+tests/unit/test_trust_boundary.py:73: in test_misspelled_environment_cannot_skip_production_checks
+    with pytest.raises(ValueError, match="ENVIRONMENT"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE ValueError
+=========================== short test summary info ============================
+FAILED tests/unit/test_trust_boundary.py::test_misspelled_environment_cannot_skip_production_checks[prod]
+1 failed in 0.32s

@@ -1,0 +1,353 @@
+{
+  "source_commit": "8dfd3035dfa723dc8470db6da36436dcfa1e566f",
+  "source_archive_sha256": "baf8feaf42fd7257e0e2ba2f10a888e3ab8cfc3a1e35a7e26e4cfb8ce7a3430d",
+  "cases": [
+    {
+      "name": "unchanged-control",
+      "expected": "survived",
+      "accepted": true,
+      "exit_code": 0,
+      "setup_errors": 0,
+      "failed_tests": [],
+      "source_before": "8ce17b07412fb13e60055409c5c9adcf41c95fb6936a54cba6094e87ffe3e640",
+      "source_after": "8ce17b07412fb13e60055409c5c9adcf41c95fb6936a54cba6094e87ffe3e640",
+      "junit_sha256": "ac32bccd3de13d48945d42c94ba0accb7dd12bb5224faafc4bbc828059426dee",
+      "output_sha256": "31e5ae4e923914d8d982f9be86752939c4db6e798e46a7c0561673858ef841b4"
+    },
+    {
+      "name": "unannotated-read",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_unannotated_tool_is_never_assumed_read_only[execute_sql]"
+      ],
+      "source_before": "8ce17b07412fb13e60055409c5c9adcf41c95fb6936a54cba6094e87ffe3e640",
+      "source_after": "f80837a79f696f24c25d5174c707f664cc0b681cf19ff413eca66b12ea30327e",
+      "junit_sha256": "0d4eef672e20f58c3e854baf826ff8778842fde0d1ae88815ab1e864043efbbb",
+      "output_sha256": "fe018ad6be73179cdb377224e078255e1bffd58cae37cba73afd1cf6b8972795"
+    },
+    {
+      "name": "stale-category",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_stale_catalog_cannot_turn_an_unannotated_tool_into_a_read"
+      ],
+      "source_before": "57aea793ce270dfb7e706a6763d53482964bad55262eecceb12f1b85501fa74e",
+      "source_after": "0fe6dca680ab37b15a76dc40351f809736f1b1cdb409e178197347de8710893c",
+      "junit_sha256": "b1753512c8a13ca4a560ed4010aa3723922bc820bce3321d53b23d24de8e8542",
+      "output_sha256": "35c8703066d48c64f3c2895b6a8a8137e70f784e963f0f76cb9406dc1345fa3f"
+    },
+    {
+      "name": "sdk-output-schema",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_adapter_output_schema_is_not_executed_by_the_hub[invalid-regex]"
+      ],
+      "source_before": "cda208b67bf461d22fc1b9f27168b3dc7e80d885330c7175c1435c1ce638d079",
+      "source_after": "13ab6a7bc2727501d6cb65d322426bdc89165f3056a7d5afff812c900c770d6b",
+      "junit_sha256": "e539cb684871d6c2e7d8b54af322233ef3d9803f29d87e6959bda1e1d5a0cc9e",
+      "output_sha256": "270cdb4b7aa97310249c96297aa9bd507e533f6d763ef2277732332a9ac779d1"
+    },
+    {
+      "name": "approval-context",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_destructive_approval_cannot_follow_a_changed_execution_context[header]"
+      ],
+      "source_before": "57aea793ce270dfb7e706a6763d53482964bad55262eecceb12f1b85501fa74e",
+      "source_after": "b0d23f54163d7b68663c8b29c17b75cddf1f1574da4b88d8648102f838bc622f",
+      "junit_sha256": "e430fb3e8f93fb92af450ef1557974937b1729cf8dfc3a4f72dfaa7c041b26a2",
+      "output_sha256": "2d0fc9a9e0803d701ba2faf998c3c92ce0a2e06963b2fd949e638c7a5712fffc"
+    },
+    {
+      "name": "replay-context",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_cached_write_cannot_be_replayed_for_a_different_connection"
+      ],
+      "source_before": "57aea793ce270dfb7e706a6763d53482964bad55262eecceb12f1b85501fa74e",
+      "source_after": "3227358e5ea9f67c7609a27073a949f68ecc892eeb8fca14f5b1b18aef32d2cb",
+      "junit_sha256": "8877417a81522196d97f8e969d42f1799f3a0f0f89c8e2e7c3374a77ab7e1c8d",
+      "output_sha256": "d79cebd1a37752a59a24535670aec6cb7f140b93e9b71ecc8b47920715f26d82"
+    },
+    {
+      "name": "replay-before-policy",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_cached_write_still_enforces_current_personal_credential_policy"
+      ],
+      "source_before": "57aea793ce270dfb7e706a6763d53482964bad55262eecceb12f1b85501fa74e",
+      "source_after": "98fa37b27dc77adf860851bd1f5930d5d2dabb693051f50f01ea9e22bbbd492f",
+      "junit_sha256": "0687bf07fef607c62b4a209a7bc35a5e6fb16db298ede8fce7f40ae957f4ff38",
+      "output_sha256": "17b7310d4101149f7c4461921abbb4536a4c2d66157fc24c4e4f336f1459243e"
+    },
+    {
+      "name": "stale-admin-email",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_admin_policy_removes_the_subjects_previous_verified_email_binding[renamed@example.test]"
+      ],
+      "source_before": "e17feb6cd8c8b25ace19248c11b319e48cc378ffd91cc58745425530118b699f",
+      "source_after": "ee93cbc4d6803bd0a7a0e38d19db7fa477391302d3c330c65a7a9eedd61bd1f6",
+      "junit_sha256": "7eb96881dc4359b930cfec47b27d6983e8f5f88b3d52239545dc57e4f43b1c5d",
+      "output_sha256": "5a5e0fc5359d4b6bd1d3474fa3dbe8fc73eb008193e48aebea464d53941d64a5"
+    },
+    {
+      "name": "single-audience-azp",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_invalid_idp_identity_never_provisions_or_issues_code[single_azp]"
+      ],
+      "source_before": "53af76f69b8899a473165b0081ab7f20788975aad892d3c4936123a4888fc026",
+      "source_after": "1d5d383b5c828b8726177b4f25ce8a0873c15f5257639996a5cde2e06c84eefb",
+      "junit_sha256": "10c80fcb7935749f395c73d916232e028d7f106a8ead155e680068c038458b96",
+      "output_sha256": "6f12c1cbde577dae561e60b5a006c2e790807badc79d7138874e7f721bb9d716"
+    },
+    {
+      "name": "credential-size",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_credential_document_size_is_bounded_before_persistence"
+      ],
+      "source_before": "92f4b5d1859e90d6ca95b093d4171e20e4dd688777a6b1a9d4758f580e20f4b6",
+      "source_after": "7c5afaefbb8a03aee0eb17900705b3874ebe2edecce05dfdcd701f5b0a46294c",
+      "junit_sha256": "9298a7cf5669b5a2c29acf7cbd994e275e306af805a5526f68d346ae2a9b115d",
+      "output_sha256": "8ee6358191affa42bbccd773a4abd71103c7a0781804126fb65a88b3352cfcb8"
+    },
+    {
+      "name": "credential-quota",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_concurrent_credential_creation_cannot_overfill_the_principal_budget"
+      ],
+      "source_before": "92f4b5d1859e90d6ca95b093d4171e20e4dd688777a6b1a9d4758f580e20f4b6",
+      "source_after": "08a370152aa59a2416c42342a724fdde143d75f9f8208da3726b4fb92b013a46",
+      "junit_sha256": "54813b23dc154d9bcb96826d888e9f09cc6f9e83f5ef13114dc0a028624cafc4",
+      "output_sha256": "4978e5fc862a24d403d9b20c622c1b0deec6a0eb06ea728a503e4cb0cb0fb92b"
+    },
+    {
+      "name": "credential-namespace",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_service_names_cannot_overwrite_or_delete_credential_bookkeeping[_index]"
+      ],
+      "source_before": "92f4b5d1859e90d6ca95b093d4171e20e4dd688777a6b1a9d4758f580e20f4b6",
+      "source_after": "96a12476a78f015d92a6314e88bd98a7c941879f6fe7f47824cc3dc61285956d",
+      "junit_sha256": "f9ec2b484fa05cf70e8a1f2964e41a61ac5b1d623012e8f65bf64e9954baf043",
+      "output_sha256": "addcdae8da34fec5688fd82787fd59afd5d4653bc125c664bfbb0128952d7b6c"
+    },
+    {
+      "name": "preference-quota",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_preference_budget_can_be_reclaimed_without_credential_fallback"
+      ],
+      "source_before": "92f4b5d1859e90d6ca95b093d4171e20e4dd688777a6b1a9d4758f580e20f4b6",
+      "source_after": "604a7150f95f57c19fb6ec6b82aa00d4f13e21bc68af77a59c4f62f070bc541c",
+      "junit_sha256": "70b84ac4797a92629722018f90bceef8c6c437fdab8625ea62b5fc441461c6f2",
+      "output_sha256": "7ec0dbf5917bdb86f85bbb3ab01b805e2f0faee2157426c83d3e964df430d410"
+    },
+    {
+      "name": "registration-quota",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_public_client_registration_has_an_atomic_storage_budget"
+      ],
+      "source_before": "53af76f69b8899a473165b0081ab7f20788975aad892d3c4936123a4888fc026",
+      "source_after": "5d20f5ffd7043916871759cc9dff3ecb3d34be18cbbd37cc9ac2487165759ccd",
+      "junit_sha256": "b78ba19bb151f9a2c681286eedb636e2e13a9bd0ad6767529e0b176b9aba4708",
+      "output_sha256": "33ac7ec776df3699bc8fd751c5d76a7568afafde2f64eeedb16ac1c57f992171"
+    },
+    {
+      "name": "registration-expiry",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_unused_registration_expires_but_successful_exchange_extends_it"
+      ],
+      "source_before": "53af76f69b8899a473165b0081ab7f20788975aad892d3c4936123a4888fc026",
+      "source_after": "c2278f1d2ba14ea5404bc9eab824800001db684d2ae0299ce4faf4d820546dac",
+      "junit_sha256": "d225692b3f0cc1752bf27defd306b8c8eb10e74acc8360417630e4699c086fb8",
+      "output_sha256": "16f27836ab292a399bca057379a7115804f595410ccc573d20a94c40e75a1ab0"
+    },
+    {
+      "name": "expired-client-race",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_expired_client_cannot_race_code_exchange_into_new_tokens"
+      ],
+      "source_before": "53af76f69b8899a473165b0081ab7f20788975aad892d3c4936123a4888fc026",
+      "source_after": "a798b7364b8bf69d1764c5cd10f9c91298626ba16c4f8189fec0864da31f22bb",
+      "junit_sha256": "9891dccc798621fb591ff44c38a263e32b23255099f9a8eb5fc39651c8b0e311",
+      "output_sha256": "8aceb032a66f79c5645b5274e56dbdc41cd213550623fefc5564b4af6b5abf69"
+    },
+    {
+      "name": "yaml-alias",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_controller_yaml_is_bounded_before_construction[alias]"
+      ],
+      "source_before": "7ecefc6d7d1b1afb43ec3167feabd1523b305fe93067729c0b8a3f3c5f429b0e",
+      "source_after": "ce1ded83738ea6b56dcc23574bbf559cdf2bccbfa7e5670d49091dd1bd882a84",
+      "junit_sha256": "5bb830e6c0dcf994d3637b8f2120d98f3993b0757b9ed23bbc00c68d0fcb07e4",
+      "output_sha256": "a83edf23d89e8d121beeaae9b55b35f458d44ff94c90f77ca8e0337cf3444151"
+    },
+    {
+      "name": "git-preflight-count",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_git_snapshot_limits_are_checked_before_loading_blobs[101-1]"
+      ],
+      "source_before": "1175d6cfd991c83655ca1a9141dd00119269c2a13ef30decb787bcfb43a1182b",
+      "source_after": "26b74053488e3d3ca0e9a60ddb90be2a0f35d01aecc20074c7a6dd6e11cd1b0c",
+      "junit_sha256": "fe79871b7fca622e237d9cb38c183ee21e539f4cec999640b30605be8b1c19f3",
+      "output_sha256": "2bf025ddd9d8f43d1557731fcd67e740ebed59ab6596bd16e462737ee2056b02"
+    },
+    {
+      "name": "audit-size",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_large_request_cannot_expand_audit_storage_without_bound[arguments]"
+      ],
+      "source_before": "bcf8678906bad22edbdad2cba8955994611fabb4befde75a7857efee3b54995b",
+      "source_after": "be2471f5f55c430ebf32e62cb959c691645bd3790a8a76764c2d7968e4f38f3b",
+      "junit_sha256": "59ea9431aa8c195091006cc9c2b18ddd76b137904ac94a79334abe2493990693",
+      "output_sha256": "54c509d551fb9dfe156592f5cd99f4831f1c640118edbaf7b7858cf5317f988f"
+    },
+    {
+      "name": "catalog-validation",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_failed_catalog_validation_does_not_keep_old_tools_callable"
+      ],
+      "source_before": "57aea793ce270dfb7e706a6763d53482964bad55262eecceb12f1b85501fa74e",
+      "source_after": "71136980b67d8e9812bec23bf288d3034052382f83a5d2b58575b07a6bfeaec2",
+      "junit_sha256": "5016b7c39ef39b0071b1190c9b7a8c8fe956479be60f1900482c9001c1f40ef9",
+      "output_sha256": "eca95d537c7f63f5241b27b1e5c0cf1bcc903406ce4ed3fe7c7262c6b07b793b"
+    },
+    {
+      "name": "ambient-ca",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_explicit_ca_extends_curated_trust_without_ambient_roots"
+      ],
+      "source_before": "9732e70108f1e0f81c0ca10ebb167b2d22c72e441cf7ab4990412ba193ec4eeb",
+      "source_after": "fe7e3000ca9ab34f49374b5d426d519fac1757dcee92186aba7b68a867688567",
+      "junit_sha256": "a9e2a1008d564f62acad6fb91b7a87d428074a2e193692cff9196f311e378a56",
+      "output_sha256": "cb94b98fdee0e55626a25bc020b412495be5d326db2ddbf88ab6a1020efcccb4"
+    },
+    {
+      "name": "deployment-deadline",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_legacy_server_timeout_cannot_escape_the_global_deadline"
+      ],
+      "source_before": "57aea793ce270dfb7e706a6763d53482964bad55262eecceb12f1b85501fa74e",
+      "source_after": "0af07cea37c5c3bd3291c7cd22d49ef7704a1653b68773a146999bc33a4d647a",
+      "junit_sha256": "78ae05c9cc6ce77d935e5f4228f7892cbceac103e8c5ad1ffb5ea75b8fa3f727",
+      "output_sha256": "23a44f1f7fda6d7bd4b050c4bced2a926893acb7dfff44238f8358aad78b0148"
+    },
+    {
+      "name": "revocation-lifetime",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_revocation_index_cannot_expire_before_access_tokens"
+      ],
+      "source_before": "542fd9975e44def67a1548c29abc0834621e89881946ec6a654d5cd699bb1cd3",
+      "source_after": "80cc307981839d3c1bbab78330362d124ef6b3254f5514123239a61e0d2d1fbf",
+      "junit_sha256": "910a6d93b142964ab68d28390a2245961430343d93dd558cde148cd998a3954e",
+      "output_sha256": "a8b042d8dd8b20641eaae4674bc017b23bf5c80437d3a4bc953764d0736f4d90"
+    },
+    {
+      "name": "unknown-environment",
+      "expected": "detected",
+      "accepted": true,
+      "exit_code": 1,
+      "setup_errors": 0,
+      "failed_tests": [
+        "test_misspelled_environment_cannot_skip_production_checks[prod]"
+      ],
+      "source_before": "542fd9975e44def67a1548c29abc0834621e89881946ec6a654d5cd699bb1cd3",
+      "source_after": "0fcdd55e0fb019a784de067072a82d777e0c4d39dae2cf7fd813d7bf46610934",
+      "junit_sha256": "8be6d0dd86ca72a88f37b3310f31ec6d4413975dde7b6e752f672489d349732b",
+      "output_sha256": "5009557bff0be4f27a0d0d0c6993e6421b338bd23777876b64e32744e3e941a2"
+    },
+    {
+      "name": "neutral-control",
+      "expected": "survived",
+      "accepted": true,
+      "exit_code": 0,
+      "setup_errors": 0,
+      "failed_tests": [],
+      "source_before": "8ce17b07412fb13e60055409c5c9adcf41c95fb6936a54cba6094e87ffe3e640",
+      "source_after": "105e4683e6afcf4a4288094046fc41e589a19a14e4f1345f1543dfe6cb1883b2",
+      "junit_sha256": "235e7d48ec1322de9e32bbfd39402de7f52b3ba0219bc004f9cc86002678ee65",
+      "output_sha256": "fbbd40b7e98fdde9c345abc2d171342ee7cc098f59ff9790110e374c8dd07d6f"
+    }
+  ],
+  "state": "passed"
+}

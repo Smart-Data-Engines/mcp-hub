@@ -1,0 +1,10 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_preference_budget_can_be_reclaimed_without_credential_fallback ______
+tests/integration/test_execution_context.py:182: in test_preference_budget_can_be_reclaimed_without_credential_fallback
+    with pytest.raises(HubError):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE HubError
+=========================== short test summary info ============================
+FAILED tests/integration/test_execution_context.py::test_preference_budget_can_be_reclaimed_without_credential_fallback
+1 failed in 0.41s

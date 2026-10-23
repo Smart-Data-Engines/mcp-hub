@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.210" timestamp="2026-10-23T21:04:38.267289+02:00" hostname="km-ThinkPad-E570"><testcase classname="tests.integration.test_security_capacity" name="test_expired_client_cannot_race_code_exchange_into_new_tokens" time="0.075"><failure message="assert (200 == 401)&#10; +  where 200 = &lt;Response [200 OK]&gt;.status_code">tests/integration/test_security_capacity.py:71: in test_expired_client_cannot_race_code_exchange_into_new_tokens
+    assert response.status_code == 401 and response.json()["error"] == "invalid_client"
+E   assert (200 == 401)
+E    +  where 200 = &lt;Response [200 OK]&gt;.status_code</failure></testcase></testsuite></testsuites>

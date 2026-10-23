@@ -170,6 +170,8 @@ class GitHubRegistry:
             entry.get("mode") != "100644" and entry.get("mode") != "100755" for entry in entries
         ):
             raise HubError("Server source contains too many files, a symlink or a submodule", 422)
+        if sum(entry.get("size", 0) for entry in entries) > 10_485_760:
+            raise HubError("A source snapshot must not exceed 10 MiB", 422)
         semaphore = asyncio.Semaphore(8)
 
         async def blob(entry: dict) -> tuple[str, str]:
@@ -286,7 +288,12 @@ class LocalGitRegistry:
             .strip()
         )
         records = self._git("ls-tree", "-r", "-z", revision, "--", folder).split(b"\0")
+        records = [record for record in records if record]
+        if len(records) > 100:
+            raise HubError("A source snapshot may contain at most 100 files", 422)
         files: dict[str, str] = {}
+        entries = []
+        total_size = 0
         for record in records:
             if not record:
                 continue
@@ -298,6 +305,11 @@ class LocalGitRegistry:
             size = int(self._git("cat-file", "-s", sha))
             if size > 1_048_576:
                 raise HubError("Source file exceeds 1 MiB", 422)
+            total_size += size
+            if total_size > 10_485_760:
+                raise HubError("A source snapshot must not exceed 10 MiB", 422)
+            entries.append((name, sha))
+        for name, sha in entries:
             try:
                 files[name] = self._git("cat-file", "blob", sha).decode("utf-8")
             except UnicodeDecodeError as exc:

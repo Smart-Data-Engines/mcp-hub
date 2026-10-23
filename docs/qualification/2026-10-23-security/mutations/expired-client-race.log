@@ -1,0 +1,10 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_expired_client_cannot_race_code_exchange_into_new_tokens _________
+tests/integration/test_security_capacity.py:71: in test_expired_client_cannot_race_code_exchange_into_new_tokens
+    assert response.status_code == 401 and response.json()["error"] == "invalid_client"
+E   assert (200 == 401)
+E    +  where 200 = <Response [200 OK]>.status_code
+=========================== short test summary info ============================
+FAILED tests/integration/test_security_capacity.py::test_expired_client_cannot_race_code_exchange_into_new_tokens
+1 failed in 0.36s

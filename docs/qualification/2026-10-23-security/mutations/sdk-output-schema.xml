@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.684" timestamp="2026-10-23T21:04:07.015826+02:00" hostname="km-ThinkPad-E570"><testcase classname="tests.integration.test_untrusted_definitions" name="test_adapter_output_schema_is_not_executed_by_the_hub[invalid-regex]" time="0.332"><failure message="RuntimeError: Invalid schema for tool lookup: '[' is not a 'regex'&#10;&#10;Failed validating 'format' in metaschema['allOf'][1]['properties']['properties']['additionalProperties']['$dynamicRef']['allOf'][3]['properties']['pattern']:&#10;    {'type': 'string', 'format': 'regex'}&#10;&#10;On schema['properties']['value']['pattern']:&#10;    '['">../mcp-hub-security-20261023-MCI8Gj/project/lib/python3.14/site-packages/jsonschema/_format.py:138: in check
+    result = func(instance)
+             ^^^^^^^^^^^^^^
+../mcp-hub-security-20261023-MCI8Gj/project/lib/python3.14/site-packages/jsonschema/_format.py:419: in is_regex
+    return bool(re.compile(instance))
+                ^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.14/re/__init__.py:289: in compile
+    return _compile(pattern, flags)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.14/re/__init__.py:350: in _compile
+    p = _compiler.compile(pattern, flags)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.14/re/_compiler.py:762: in compile
+    p = _parser.parse(p, flags)
+        ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.14/re/_parser.py:973: in parse
+    p = _parse_sub(source, state, flags &amp; SRE_FLAG_VERBOSE, 0)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.14/re/_parser.py:460: in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+/usr/lib/python3.14/re/_parser.py:568: in _parse
+    raise source.error("unterminated character set",
+E   re.PatternError: unterminated character set at position 0
+
+The above exception was the direct cause of the following exception:
+../mcp-hub-security-20261023-MCI8Gj/project/lib/python3.14/site-packages/mcp/client/session.py:441: in _validate_tool_result
+    validate(result.structuredContent, output_schema, registry=registry)
+../mcp-hub-security-20261023-MCI8Gj/project/lib/python3.14/site-packages/jsonschema/validators.py:1328: in validate
+    cls.check_schema(schema)
+../mcp-hub-security-20261023-MCI8Gj/project/lib/python3.14/site-packages/jsonschema/validators.py:316: in check_schema
+    raise exceptions.SchemaError.create_from(error)
+E   jsonschema.exceptions.SchemaError: '[' is not a 'regex'
+E   
+E   Failed validating 'format' in metaschema['allOf'][1]['properties']['properties']['additionalProperties']['$dynamicRef']['allOf'][3]['properties']['pattern']:
+E       {'type': 'string', 'format': 'regex'}
+E   
+E   On schema['properties']['value']['pattern']:
+E       '['
+
+During handling of the above exception, another exception occurred:
+tests/integration/test_untrusted_definitions.py:89: in test_adapter_output_schema_is_not_executed_by_the_hub
+    result = await session.call("lookup", {}, 2, "schema-boundary")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/mcp_hub/upstreams.py:235: in call
+    result = await self.client.call_tool(name, arguments, read_timeout_seconds=timedelta(seconds=budget), meta={"hub/request_id": request_id})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../mcp-hub-security-20261023-MCI8Gj/project/lib/python3.14/site-packages/mcp/client/session.py:413: in call_tool
+    await self._validate_tool_result(name, result)
+../mcp-hub-security-20261023-MCI8Gj/project/lib/python3.14/site-packages/mcp/client/session.py:445: in _validate_tool_result
+    raise RuntimeError(f"Invalid schema for tool {name}: {e}")  # pragma: no cover
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: Invalid schema for tool lookup: '[' is not a 'regex'
+E   
+E   Failed validating 'format' in metaschema['allOf'][1]['properties']['properties']['additionalProperties']['$dynamicRef']['allOf'][3]['properties']['pattern']:
+E       {'type': 'string', 'format': 'regex'}
+E   
+E   On schema['properties']['value']['pattern']:
+E       '['</failure></testcase></testsuite></testsuites>

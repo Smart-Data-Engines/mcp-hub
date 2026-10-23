@@ -1,0 +1,9 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_git_snapshot_limits_are_checked_before_loading_blobs[101-1] _______
+tests/integration/test_untrusted_definitions.py:200: in test_git_snapshot_limits_are_checked_before_loading_blobs
+    assert not blobs
+E   AssertionError: assert not [('cat-file', 'blob', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'), ('cat-file', 'blob', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbb...b', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'), ('cat-file', 'blob', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'), ...]
+=========================== short test summary info ============================
+FAILED tests/integration/test_untrusted_definitions.py::test_git_snapshot_limits_are_checked_before_loading_blobs[101-1]
+1 failed in 0.37s
