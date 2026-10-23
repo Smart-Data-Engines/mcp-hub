@@ -4,6 +4,8 @@ import os
 import subprocess
 import sys
 
+import certifi
+
 
 def main() -> None:
     subprocess.run(
@@ -18,6 +20,9 @@ def main() -> None:
             "install",
             "--no-cache-dir",
             "--disable-pip-version-check",
+            "--use-deprecated=legacy-certs",
+            "--cert",
+            os.environ.get("PIP_CERT") or certifi.where(),
             "-r",
             "/server/requirements.txt",
         ],

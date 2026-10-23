@@ -30,8 +30,9 @@ async def lookup(query: str, credentials: dict | None = None) -> dict:
 
 Always declare `readOnlyHint` and `destructiveHint`. A mutating annotation without
 an explicit non-destructive hint uses MCP's conservative destructive default.
-Name-token heuristics apply only when annotations are absent and are visible in
-coverage metrics. Shared adapters should have complete annotation coverage.
+Without annotations, a tool is treated as destructive regardless of its name. A read-only
+grant cannot invoke it. This also applies to old cached catalogs. Annotations remain claims
+made by the adapter author: review shared code and constrain source-system credentials.
 
 `credentials` is an explicit argument, never `**kwargs`. The client does not see
 it in the advertised schema. The hub removes client-supplied identity/credential
@@ -66,9 +67,17 @@ Commit saves source; **Restart** deploys a fresh immutable registry snapshot. A
 plain Docker restart uses the existing snapshot. Running commit IDs appear in the
 console, `/health` and `hub.discover_tools`. Optional pinned tags/commits are honored.
 
+Controller-read YAML declarations are limited to 64 KiB, 512 nodes and 16 levels; aliases
+are rejected. Source snapshots are checked for at most 100 files and 10 MiB before blob
+contents are read. These limits do not impose a quota on the Git repository's history.
+Per-server timeouts can reduce, but cannot exceed, the deployment's call ceiling.
+
 The hub performs bounded argument-shape checks. Full tool JSON Schema validation
 runs in the isolated upstream SDK; remote references and arbitrary schema regexes
-are not executed in the privileged gateway. Upstream responses have both a wire
+are not executed in the privileged gateway, including output schemas advertised by a
+server. The gateway checks the MCP response envelope and JSON complexity. A failed catalog
+refresh leaves diagnostic metadata available but prevents new calls until validation succeeds.
+Upstream responses have both a wire
 byte limit and a redacted content cap. Compressed upstream responses are rejected
 to keep the transport limit effective before parsing/decompression.
 

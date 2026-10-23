@@ -129,25 +129,8 @@ def category(tool: dict[str, Any]) -> tuple[Category, bool]:
         if annotations.get("destructiveHint", True) is not False:
             return "destructive", True
         return "write", True
-    words = set(
-        re.findall(r"[a-z0-9]+", re.sub(r"([a-z])([A-Z])", r"\1_\2", tool.get("name", "")).lower())
-    )
-    if words & {"delete", "drop", "destroy", "truncate", "purge", "remove", "wipe"}:
-        return "destructive", False
-    if words & {
-        "create",
-        "update",
-        "write",
-        "set",
-        "post",
-        "put",
-        "patch",
-        "add",
-        "commit",
-        "send",
-    }:
-        return "write", False
-    return "read", False
+    # Names are not an authorization contract. MCP defaults unknown tools to mutating/destructive.
+    return "destructive", False
 
 
 def public_schema(schema: dict[str, Any]) -> dict[str, Any]:
@@ -188,12 +171,21 @@ class Cipher:
 class RedactingJSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         try:
-            message = scrub_text(record.getMessage())
-            error = (
-                scrub_text("".join(traceback.format_exception(*record.exc_info)))
-                if record.exc_info
-                else None
+            raw_message = record.getMessage()
+            message = (
+                scrub_text(raw_message)
+                if len(raw_message) <= 16384
+                else f"Oversized log message withheld ({len(raw_message)} characters)"
             )
+            error = (
+                "".join(traceback.format_exception(*record.exc_info)) if record.exc_info else None
+            )
+            if error:
+                error = (
+                    scrub_text(error)
+                    if len(error) <= 16384
+                    else "Oversized exception detail withheld"
+                )
             value = {
                 "@timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
                 "log.level": record.levelname.lower(),

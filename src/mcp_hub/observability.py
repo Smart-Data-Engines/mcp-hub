@@ -14,7 +14,7 @@ from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, gene
 
 from .config import Settings
 from .security import scrub
-from .store import Store, dumps
+from .store import Store, digest, dumps
 
 log = logging.getLogger(__name__)
 
@@ -106,6 +106,40 @@ class Audit:
             "@timestamp": datetime.now(UTC).isoformat(),
             **(event if redacted else scrub(event, audit=True)),
         }
+        serialized = dumps(value)
+        if len(serialized.encode()) > self.settings.max_audit_event_bytes:
+            # Preserve decision metadata, not attacker-sized bodies in the shared state store.
+            keep = {
+                "@timestamp",
+                "request_id",
+                "tool",
+                "server",
+                "category",
+                "principal_id",
+                "username",
+                "client_id",
+                "token_type",
+                "client_ip",
+                "credentials_source",
+                "status",
+                "duration_ms",
+                "response_size",
+            }
+            value = {
+                key: item[:256] if isinstance(item, str) else item
+                for key, item in value.items()
+                if key in keep and isinstance(item, (str, int, float, bool))
+            }
+            value.update(details_truncated=True, redacted_event_digest=digest(serialized))
+            serialized = dumps(value)
+            if len(serialized.encode()) > self.settings.max_audit_event_bytes:
+                value = {
+                    key: value[key]
+                    for key in ("@timestamp", "request_id", "status", "redacted_event_digest")
+                    if key in value
+                }
+                value["details_truncated"] = True
+                serialized = dumps(value)
         try:
             size = await self.store.script(
                 """
@@ -113,7 +147,7 @@ class Audit:
                 return redis.call('RPUSH',KEYS[1],ARGV[1])
             """,
                 ["audit:spool", "audit:dropped"],
-                [dumps(value), self.settings.audit_spool_max_entries],
+                [serialized, self.settings.audit_spool_max_entries],
             )
             if size == -1:
                 self.drop("spool_full")

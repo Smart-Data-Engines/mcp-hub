@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
 
 Category = Literal["read", "write", "destructive"]
 ALL_CAPS: set[Category] = {"read", "write", "destructive"}
@@ -51,8 +51,8 @@ class ServerDefinition(BaseModel):
     idempotency: bool = True
     approval_required: bool = False
     approval_four_eyes: bool = False
-    call_timeout: float | None = Field(default=None, gt=0)
-    read_timeout: float | None = Field(default=None, gt=0)
+    call_timeout: FiniteFloat | None = Field(default=None, gt=0)
+    read_timeout: FiniteFloat | None = Field(default=None, gt=0)
     error: str = ""
 
 

@@ -26,6 +26,7 @@ from packaging.version import Version
 
 from .config import Settings
 from .credentials import Credentials
+from .declarations import declaration
 from .models import HubError, ServerDefinition
 from .registry import Registry, validate_files, validate_path
 from .security import cap_text, scrub_text, secret_values
@@ -82,7 +83,7 @@ def validate_worker_sdk(document: str) -> None:
 
 def resource_limits(document: str) -> tuple[int, float]:
     try:
-        data = yaml.safe_load(document) or {}
+        data = declaration(document)
         if not isinstance(data, dict):
             raise ValueError
         memory = data.get("memory", "512m")
@@ -186,7 +187,7 @@ class Runtime:
             folder = f"{definition.owner}/{definition.name}"
             existing = await self.registry.snapshot(folder)
             if existing.files:
-                manifest = yaml.safe_load(existing.files.get("manifest.yaml", "")) or {}
+                manifest = declaration(existing.files.get("manifest.yaml", ""))
                 if (
                     not isinstance(manifest, dict)
                     or manifest.get("name") != definition.name
@@ -372,17 +373,17 @@ class Runtime:
                     422,
                 )
             validate_worker_sdk(snapshot.files["requirements.txt"])
-            declaration = yaml.safe_load(snapshot.files["env.yaml"]) or {}
-            if not isinstance(declaration, dict) or any(
-                not isinstance(declaration.get(key, []), list)
-                or any(not isinstance(field, str) for field in declaration.get(key, []))
+            declared = declaration(snapshot.files["env.yaml"])
+            if any(
+                not isinstance(declared.get(key, []), list)
+                or any(not isinstance(field, str) for field in declared.get(key, []))
                 for key in ("env", "user_env")
             ):
                 raise HubError("env.yaml must declare env and user_env lists", 422)
             values = await self.credentials.global_env(name)
-            definition.user_env_fields = declaration.get("user_env", [])
+            definition.user_env_fields = declared.get("user_env", [])
             environment = {
-                key: value for key, value in values.items() if key in declaration.get("env", [])
+                key: value for key, value in values.items() if key in declared.get("env", [])
             }
             await self.store.redis.set(
                 self.store.key("mcp:running-env:" + name),

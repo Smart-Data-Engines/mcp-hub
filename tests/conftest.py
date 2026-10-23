@@ -138,6 +138,7 @@ async def harness(settings):
                     "alpha": {
                         "tools": tools,
                         "status": "connected",
+                        "tools_validated": True,
                         "policy": "both",
                         "code_version": "abc123",
                         "circuit_open": False,

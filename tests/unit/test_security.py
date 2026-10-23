@@ -73,10 +73,14 @@ def test_credentials_written_before_the_crypto_upgrade_remain_readable_and_rotat
     assert Cipher(new).decrypt(rotated) == expected
 
 
-def test_category_heuristics_use_tokens_and_mcp_defaults():
-    assert category({"name": "list_merge_requests"}) == ("read", False)
-    assert category({"name": "list_deletions"}) == ("read", False)
+def test_category_uses_explicit_annotations_and_conservative_mcp_defaults():
+    assert category({"name": "list_merge_requests"}) == ("destructive", False)
+    assert category({"name": "list_deletions"}) == ("destructive", False)
     assert category({"name": "deleteRecord"}) == ("destructive", False)
+    assert category({"name": "list_deletions", "annotations": {"readOnlyHint": True}}) == (
+        "read",
+        True,
+    )
     assert category({"name": "lookup", "annotations": {"readOnlyHint": False}}) == (
         "destructive",
         True,

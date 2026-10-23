@@ -76,7 +76,13 @@ class Hub:
         )
         self.store = Store(self.redis, settings.store_prefix)
         self.acl, self.metrics = ACL(self.store), Metrics()
-        self.credentials = Credentials(self.store, Cipher(settings.credentials_encryption_key))
+        self.credentials = Credentials(
+            self.store,
+            Cipher(settings.credentials_encryption_key),
+            max_bytes=settings.max_credential_bytes,
+            max_services=settings.max_credential_services,
+            max_preferences=settings.max_credential_preferences,
+        )
         self.oauth = OAuth(self.store, settings, self.acl, self.http)
         self.upstreams = Upstreams(self.store, settings, self.metrics)
         self.audit = Audit(self.store, settings, self.metrics, self.http)

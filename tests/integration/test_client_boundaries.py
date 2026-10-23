@@ -79,7 +79,7 @@ async def test_anyio_level_cancellation_finishes_audit_and_releases_request_trac
 
     async with anyio.create_task_group() as group:
         group.start_soon(worker)
-        await entered.wait()
+        await asyncio.wait_for(entered.wait(), timeout=2)
         holder["scope"].cancel()
         await asyncio.wait_for(finished.wait(), timeout=5)
     assert holder["result"]["isError"]

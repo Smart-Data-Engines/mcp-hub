@@ -83,6 +83,10 @@ class ACL:
             """
             local allowed=cjson.decode(ARGV[1])
             if ARGV[2]~='' then
+                local bindings=redis.call('HGETALL',KEYS[1])
+                for i=1,#bindings,2 do
+                    if bindings[i+1]==ARGV[2] then redis.call('HDEL',KEYS[1],bindings[i]) end
+                end
                 for _,email in ipairs(allowed) do if email==ARGV[3] then
                     redis.call('HSET',KEYS[1],email,ARGV[2]) end end
             end

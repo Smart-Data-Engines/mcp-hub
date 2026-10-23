@@ -92,6 +92,8 @@ def oidc_transport(key, settings, state, defect=""):
                 claims["email_verified"] = False
             elif defect == "azp":
                 claims.update(aud=[settings.idp_client_id, "other"], azp="other")
+            elif defect == "single_azp":
+                claims["azp"] = "other"
             elif defect == "hosted_domain":
                 claims["hd"] = "external.test"
             elif defect == "missing_hosted_domain":
@@ -159,7 +161,18 @@ async def test_all_provider_choices_use_verified_oidc_and_hub_tokens(
 
 
 @pytest.mark.parametrize(
-    "defect", ["nonce", "issuer", "audience", "expired", "domain", "unverified_email", "azp", "kid"]
+    "defect",
+    [
+        "nonce",
+        "issuer",
+        "audience",
+        "expired",
+        "domain",
+        "unverified_email",
+        "azp",
+        "single_azp",
+        "kid",
+    ],
 )
 async def test_invalid_idp_identity_never_provisions_or_issues_code(harness, signing_key, defect):
     settings = harness.hub.settings

@@ -26,6 +26,10 @@ jobs:
           version: '0.13.1'
       - run: python scripts/check_private_boundaries.py
       - run: uv sync --frozen --extra dev
+      - if: matrix.python == '3.13'
+        run: |
+          uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/mcp-runtime.txt" > /dev/null
+          uvx --from pip-audit==2.10.1 pip-audit --require-hashes -r "$RUNNER_TEMP/mcp-runtime.txt"
       - run: uv run ruff check src tests deploy/operations.py deploy/restore_check.py
       - run: uv run ruff format --check src tests deploy/operations.py deploy/restore_check.py
       - run: uv run mypy src/mcp_hub
@@ -48,6 +52,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - run: npm audit
       - run: npx prettier --check src tests tsconfig.json vite.config.ts playwright.config.ts
       - run: npm run build
   docker-acceptance:

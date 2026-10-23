@@ -82,10 +82,38 @@ offline managed servers. A selected server includes each person's effective
 capabilities and their sources from one ACL snapshot. The legacy individual
 grant/deny endpoints retain their previous independent behavior.
 
+New dynamic OAuth registrations expire after one hour if unused. A successful code or
+refresh exchange extends the registration by the refresh-token lifetime. At most 1024 new
+dynamic registrations may be retained by default, enforced atomically across replicas.
+The built-in console, administrator-created bots and pre-upgrade registrations are preserved.
+Configure `MAX_OAUTH_CLIENTS` and `OAUTH_REGISTRATION_TTL` for the deployment. Capacity refusal
+returns 429; an expired registration requires restarting client registration/sign-in.
+
 `POST /credentials` optionally accepts boolean `only_mine`; when supplied, the
 encrypted credential object, service index and preference are saved in one
 transaction. Existing clients that omit it retain their current preference.
+`only_mine: false` removes the explicit preference and restores the default. Deleting a
+credential does not remove an explicit `only_mine: true` policy. Defaults allow 32 saved
+connections, 64 preferences and 16 KiB per credential document; concurrent writes cannot
+overfill the budgets. Updates to existing entries and removals remain possible when full.
+Credential mutations share a 60/minute per-principal limit. See the `MAX_CREDENTIAL_*` and
+`CREDENTIAL_WRITE_RATE_LIMIT` settings in `.env.example`.
+The valid service names `_index` and `modes` use separate encrypted value keys, so they cannot
+overwrite bookkeeping or reset a quota. Other existing credential records retain their format.
 
 `X-Hub-Credentials` accepts JSON keyed by service/server name. The server policy
 still governs its use. Tool arguments named `credentials` or Hub identity fields
 are removed unconditionally and never treated as trusted overrides.
+
+Destructive approvals bind the OAuth client, effective connection, running Global Env,
+credential policy, advertised revision and argument schema. Only the encrypted context digest
+is retained; credential values and the digest are not returned by the review API. The console
+shows the connection source, revision and client. Changing the context supersedes a pending
+approval and requires fresh review. Arguments for human review are limited to 16 KiB by default.
+
+Cached writes recheck current credential policy. A changed context returns
+`idempotency_context_changed`, with no replay or new effect. Inspect the earlier outcome before
+retrying after the configured cache window. This is bounded deduplication, not an unlimited
+exactly-once guarantee. Legacy approvals are replaced; legacy write records without a context
+binding refuse reuse until their existing TTL expires. Keep previous encryption keys available
+for the full lifetime of in-flight calls, cached writes and approvals during rotation.

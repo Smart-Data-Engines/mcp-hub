@@ -12,6 +12,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
+from .declarations import declaration
 from .http import body, context
 from .models import ALL_CAPS, NAME, HubError, ServerDefinition, visible
 from .registry import source_location, validate_files, validate_path
@@ -69,6 +70,16 @@ async def _may_change_user(request: Request) -> None:
 
 
 def management_routes() -> list[Route]:
+    async def credential_write_budget(request: Request) -> None:
+        hub = request.app.state.hub
+        allowed, retry = await hub.store.rate(
+            "credential-writes:" + digest(context(request).principal.id),
+            hub.settings.credential_write_rate_limit,
+            60,
+        )
+        if not allowed:
+            raise HubError("Personal credential update rate limit reached", 429, retry_after=retry)
+
     async def whoami(request: Request) -> Response:
         hub, ctx = request.app.state.hub, context(request)
         access = await hub.gateway.access(ctx)
@@ -343,6 +354,7 @@ def management_routes() -> list[Route]:
                     "only_mine": await hub.credentials.modes(principal.id),
                 }
             )
+        await credential_write_budget(request)
         data = await body(request)
         service = service_name(data.get("service"))
         value = data.get("credentials")
@@ -355,6 +367,7 @@ def management_routes() -> list[Route]:
         return Response(status_code=204)
 
     async def delete_credentials(request: Request) -> Response:
+        await credential_write_budget(request)
         await request.app.state.hub.credentials.delete(
             context(request).principal.id, service_name(request.path_params["service"])
         )
@@ -364,6 +377,7 @@ def management_routes() -> list[Route]:
         hub, principal = request.app.state.hub, context(request).principal
         if request.method == "GET":
             return JSONResponse(await hub.credentials.modes(principal.id))
+        await credential_write_budget(request)
         data = await body(request)
         if not isinstance(data.get("only_mine"), bool):
             raise HubError("only_mine must be a boolean", 422)
@@ -431,6 +445,8 @@ def management_routes() -> list[Route]:
         if set(data) - allowed:
             raise HubError("Unsupported or privileged server fields", 403)
         updated = ServerDefinition.model_validate({**definition.model_dump(), **data})
+        if updated.call_timeout and updated.call_timeout > hub.settings.upstream_call_tool_timeout:
+            raise HubError("Per-server timeout cannot exceed the deployment call limit", 422)
         if updated.read_timeout is not None and updated.read_timeout >= (
             updated.call_timeout or hub.settings.upstream_call_tool_timeout
         ):
@@ -531,7 +547,7 @@ def management_routes() -> list[Route]:
         definition, access = await owner(request)
         hub = request.app.state.hub
         snapshot = await hub.registry.snapshot(f"{definition.owner}/{definition.name}")
-        fields = yaml.safe_load(snapshot.files.get("env.yaml", "")) or {}
+        fields = declaration(snapshot.files.get("env.yaml", ""))
         if request.url.path.endswith("/env/values"):
             await role(request)
             return JSONResponse({"values": await hub.credentials.global_env(definition.name)})
@@ -585,7 +601,7 @@ def management_routes() -> list[Route]:
         if not access.capabilities(definition.name):
             raise HubError("Server access required", 403)
         snapshot = await hub.registry.snapshot(f"{definition.owner}/{definition.name}")
-        fields = yaml.safe_load(snapshot.files.get("env.yaml", "")) or {}
+        fields = declaration(snapshot.files.get("env.yaml", ""))
         return JSONResponse({"fields": fields.get("user_env", [])})
 
     async def policy(request: Request) -> Response:
@@ -627,7 +643,13 @@ def management_routes() -> list[Route]:
                         and access.permits(value["tool"].partition(".")[0], "destructive")
                     )
                 ):
-                    values.append({key: item for key, item in value.items() if key != "arguments"})
+                    values.append(
+                        {
+                            key: item
+                            for key, item in value.items()
+                            if key not in {"arguments", "execution_context"}
+                        }
+                    )
             return JSONResponse({"approvals": values})
         ui = await hub.store.get("oauth:ui:" + digest(request.cookies.get("hub_ui", "")))
         if (

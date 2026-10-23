@@ -186,7 +186,33 @@ class OAuth:
         if secret:
             async with self._hash_slots:
                 stored["secret_hash"] = await asyncio.to_thread(self.hasher.hash, secret)
-        await self.store.put("oauth:client:" + client_id, stored)
+        if bot:
+            await self.store.put("oauth:client:" + client_id, stored)
+        else:
+            stored["registration_kind"] = "dynamic"
+            created = await self.store.script(
+                """
+                local clock=redis.call('TIME')
+                local now=tonumber(clock[1])+tonumber(clock[2])/1000000
+                redis.call('ZREMRANGEBYSCORE',KEYS[2],'-inf',now)
+                if redis.call('ZCARD',KEYS[2])>=tonumber(ARGV[3]) then return 0 end
+                redis.call('SET',KEYS[1],ARGV[1],'EX',ARGV[4])
+                redis.call('ZADD',KEYS[2],now+tonumber(ARGV[4]),ARGV[2]); return 1
+                """,
+                ["oauth:client:" + client_id, "oauth:dynamic-clients"],
+                [
+                    dumps(stored),
+                    client_id,
+                    self.settings.max_oauth_clients,
+                    self.settings.oauth_registration_ttl,
+                ],
+            )
+            if not created:
+                raise OAuthError(
+                    "temporarily_unavailable",
+                    "Client registration capacity reached; retry later or contact the administrator",
+                    429,
+                )
         if bot:
             principal = Principal(
                 id="bot_" + client_id, username=name, kind="bot", client_id=client_id
@@ -222,6 +248,7 @@ class OAuth:
         consume_key: str | None = None,
         expected: str = "",
         management: bool | None = None,
+        require_client: bool = False,
     ) -> dict[str, Any]:
         access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
         access_key, refresh_key = (
@@ -243,15 +270,31 @@ class OAuth:
         }
         result = await self.store.script(
             """
+            local client=redis.call('GET',KEYS[6])
+            if ARGV[7]=='1' and not client then return -1 end
             if ARGV[1]=='1' and redis.call('GET',KEYS[1])~=ARGV[2] then return 0 end
             if ARGV[1]=='1' then redis.call('DEL',KEYS[1]) end
+            if client and cjson.decode(client).registration_kind=='dynamic' then
+                local clock=redis.call('TIME')
+                local now=tonumber(clock[1])+tonumber(clock[2])/1000000
+                redis.call('EXPIRE',KEYS[6],ARGV[6])
+                redis.call('ZADD',KEYS[7],now+tonumber(ARGV[6]),ARGV[8])
+            end
             for _,key in ipairs(redis.call('SMEMBERS',KEYS[4])) do redis.call('DEL',key) end
             redis.call('DEL',KEYS[4])
             redis.call('SET',KEYS[2],ARGV[3],'EX',ARGV[5]); redis.call('SET',KEYS[3],ARGV[4],'EX',ARGV[6])
             redis.call('SADD',KEYS[4],KEYS[2],KEYS[3]); redis.call('EXPIRE',KEYS[4],ARGV[6])
             redis.call('SADD',KEYS[5],KEYS[4]); redis.call('EXPIRE',KEYS[5],ARGV[6]); return 1
         """,
-            [consume_key or "oauth:_no-consume", access_key, refresh_key, index, clients_index],
+            [
+                consume_key or "oauth:_no-consume",
+                access_key,
+                refresh_key,
+                index,
+                clients_index,
+                "oauth:client:" + client_id,
+                "oauth:dynamic-clients",
+            ],
             [
                 "1" if consume_key else "0",
                 expected,
@@ -259,8 +302,14 @@ class OAuth:
                 dumps({**data, "partner": self.store.key(access_key)}),
                 self.settings.access_token_ttl,
                 self.settings.refresh_token_ttl,
+                "1" if require_client else "0",
+                client_id,
             ],
         )
+        if result == -1:
+            raise OAuthError(
+                "invalid_client", "Client registration expired; start sign-in again", 401
+            )
         if not result:
             raise OAuthError("invalid_grant", "The code or refresh token was already consumed")
         return {
@@ -318,6 +367,7 @@ class OAuth:
                 consume_key=key,
                 expected=raw,
                 management=bool(client.get("management_allowed")),
+                require_client=True,
             )
         if grant == "refresh_token":
             key = "oauth:refresh:" + digest(params.get("refresh_token", ""))
@@ -333,6 +383,7 @@ class OAuth:
                 consume_key=key,
                 expected=raw,
                 management=bool(client.get("management_allowed")),
+                require_client=True,
             )
         if grant == "client_credentials":
             principal = Principal(
@@ -343,7 +394,10 @@ class OAuth:
             )
             await self.acl.provision(principal)
             return await self._issue(
-                principal, client_id, management=bool(client.get("management_allowed"))
+                principal,
+                client_id,
+                management=bool(client.get("management_allowed")),
+                require_client=True,
             )
         raise OAuthError("unsupported_grant_type", "Unsupported grant_type")
 
@@ -548,10 +602,8 @@ class OAuth:
             if not hmac.compare_digest(str(claims.get("nonce", "")), data["nonce"]):
                 raise ValueError("Invalid nonce")
             if (
-                isinstance(claims["aud"], list)
-                and len(claims["aud"]) > 1
-                and claims.get("azp") != self.settings.idp_client_id
-            ):
+                "azp" in claims or (isinstance(claims["aud"], list) and len(claims["aud"]) > 1)
+            ) and claims.get("azp") != self.settings.idp_client_id:
                 raise ValueError("Invalid authorized party")
         except (jwt.PyJWTError, ValueError, KeyError) as exc:
             raise OAuthError(

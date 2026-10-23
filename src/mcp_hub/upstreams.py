@@ -13,10 +13,11 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
-from mcp import ClientSession
+from mcp import ClientSession, types
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.exceptions import McpError
 
+from .arguments import validate_json
 from .config import Settings
 from .models import HubError
 from .observability import Metrics
@@ -49,7 +50,10 @@ class LimitedStream(httpx.AsyncByteStream):
 
 class LimitedTransport(httpx.AsyncBaseTransport):
     def __init__(self, limit: int, *, ca_bundle: str = ""):
-        self.inner, self.limit = httpx.AsyncHTTPTransport(verify=trust(ca_bundle)), limit
+        self.inner, self.limit = (
+            httpx.AsyncHTTPTransport(verify=trust(ca_bundle), trust_env=False),
+            limit,
+        )
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         request.headers["accept-encoding"] = "identity"
@@ -226,18 +230,34 @@ class Session:
         if not self.client:
             raise HubError("Upstream is disconnected; use hub.discover_tools", 502)
         try:
-            result = await self.client.call_tool(
-                name,
-                arguments,
-                read_timeout_seconds=timedelta(seconds=budget),
-                meta={"hub/request_id": request_id},
+            # The high-level SDK call executes adapter-supplied output schemas (including regex)
+            # inside this privileged process. Keep the SDK wire/envelope validation, not that code.
+            result = await self.client.send_request(
+                types.ClientRequest(
+                    types.CallToolRequest(
+                        params=types.CallToolRequestParams(
+                            name=name,
+                            arguments=arguments,
+                            _meta=types.RequestParams.Meta(**{"hub/request_id": request_id}),
+                        )
+                    )
+                ),
+                types.CallToolResult,
+                request_read_timeout_seconds=timedelta(seconds=budget),
             )
         except McpError as exc:
             # Python SDK uses HTTP 408; TypeScript peers may use JSON-RPC -32001.
             if exc.error.code in {408, -32001}:
                 raise TimeoutError("Upstream request budget elapsed") from exc
             raise
-        return result.model_dump(by_alias=True, exclude_none=True)
+        value = result.model_dump(by_alias=True, exclude_none=True)
+        try:
+            validate_json(value)
+        except HubError as exc:
+            raise HubError(
+                "Upstream result exceeds JSON limits", 502, code="upstream_error"
+            ) from exc
+        return value
 
 
 class Upstreams:
@@ -359,6 +379,8 @@ class Upstreams:
                 previous = old.get(name, {"tools": []})
                 definition = definitions.get(name, {})
                 base = {
+                    "url": data["url"],
+                    "tools_validated": False,
                     "code_version": data.get("code_version", ""),
                     "policy": definition.get("policy", "both"),
                     "status": "degraded",
@@ -417,6 +439,7 @@ class Upstreams:
                         **base,
                         "tools": normalized,
                         "status": "connected",
+                        "tools_validated": True,
                         "circuit_open": False,
                     }
                 except Exception as exc:

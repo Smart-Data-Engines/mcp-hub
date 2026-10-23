@@ -11,6 +11,7 @@ license = "Apache-2.0"
 dependencies = [
   "mcp>=1.30,<2", "starlette>=1.8,<2", "uvicorn>=0.35,<1",
   "httpx>=0.28,<1", "redis>=6,<8", "cryptography>=50,<51",
+  "certifi>=2026.10.19",
   "pydantic>=2.11,<3", "pydantic-settings>=2.9,<3", "PyJWT[crypto]>=2.10,<3",
   "argon2-cffi>=25,<26", "prometheus-client>=0.22,<1", "docker>=7.1,<8",
   "PyYAML>=6,<7", "python-multipart>=0.0.20,<1",

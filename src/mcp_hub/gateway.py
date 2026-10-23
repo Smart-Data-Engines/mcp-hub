@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import hmac
 import json
 import logging
 import math
+import re
 import secrets
 import time
 import uuid
@@ -24,7 +26,7 @@ from .config import Settings
 from .credentials import Credentials
 from .models import RESERVED_ARGS, HubError, Principal
 from .observability import Audit, Metrics
-from .security import active_secrets, cap_text, scrub, scrub_text, secret_values
+from .security import active_secrets, cap_text, category, scrub, scrub_text, secret_values
 from .store import Store, digest, dumps
 from .upstreams import Upstreams
 
@@ -87,7 +89,7 @@ class Gateway:
         tools = []
         for server, entry in catalog["servers"].items():
             for tool in entry["tools"]:
-                if access.permits(server, tool["category"]):
+                if access.permits(server, category(tool)[0]):
                     public = {key: tool[key] for key in ("description", "inputSchema")}
                     if tool.get("annotations"):
                         public["annotations"] = tool["annotations"]
@@ -114,9 +116,9 @@ class Gateway:
                     "code_version": entry.get("code_version", ""),
                     "credentials_policy": entry.get("policy", "both"),
                     "tools": [
-                        {"name": f"{server}.{tool['name']}", "category": tool["category"]}
+                        {"name": f"{server}.{tool['name']}", "category": category(tool)[0]}
                         for tool in entry["tools"]
-                        if access.permits(server, tool["category"])
+                        if access.permits(server, category(tool)[0])
                     ],
                 }
                 for server, entry in catalog["servers"].items()
@@ -149,12 +151,46 @@ class Gateway:
         fingerprint: str,
         definition: dict[str, Any],
         access: Access,
+        execution_context: str,
+        execution_summary: dict[str, str],
     ) -> str | None:
         if not definition.get("approval_required") and not access.group.get("approval_required"):
             return None
+        if len(dumps(arguments).encode()) > self.settings.max_approval_argument_bytes:
+            raise HubError(
+                "Arguments exceed the human-review size limit; narrow the action",
+                413,
+                code="approval_too_large",
+            )
         lookup = "approval:lookup:" + fingerprint
         approval_id = await self.store.get(lookup)
         approval = await self.store.get("approval:" + approval_id) if approval_id else None
+        if approval and not self._same_execution(approval, execution_context):
+            # Detach only the observed pointer. A concurrent request may already have replaced it.
+            changed = await self.store.script(
+                """
+                if redis.call('GET',KEYS[1])~=ARGV[1] then return 0 end
+                local raw=redis.call('GET',KEYS[2])
+                local ttl=redis.call('TTL',KEYS[2])
+                if raw and ttl>0 then
+                    local a=cjson.decode(raw)
+                    if a.status=='pending' or a.status=='approved' then
+                        a.status='superseded'
+                        redis.call('SET',KEYS[2],cjson.encode(a),'EX',ttl)
+                    end
+                end
+                redis.call('DEL',KEYS[1]); return 1
+                """,
+                [lookup, "approval:" + approval_id],
+                [dumps(approval_id)],
+            )
+            if not changed:
+                raise HubError(
+                    "Approval context changed concurrently; retry the call",
+                    409,
+                    code="blocked_approval",
+                )
+            approval = None
         if approval and approval.get("status") == "approved":
             if (
                 definition.get("approval_four_eyes")
@@ -184,6 +220,8 @@ class Gateway:
                 "status": "pending",
                 "four_eyes": bool(definition.get("approval_four_eyes")),
                 "created_at": datetime.now(UTC).isoformat(),
+                "execution_context": self.credentials.cipher.encrypt(execution_context),
+                "execution_summary": execution_summary,
             }
             created = await self.store.script(
                 """
@@ -206,6 +244,29 @@ class Gateway:
             f"Human approval required. Open the console's Approvals view and review request {approval_id}; then retry the same call. An argument or prompt cannot approve it.",
             403,
             code="blocked_approval",
+        )
+
+    def _same_execution(self, record: dict[str, Any], execution_context: str) -> bool:
+        encrypted = record.get("execution_context")
+        if not isinstance(encrypted, str):
+            return False
+        saved = self.credentials.cipher.decrypt(encrypted)
+        return isinstance(saved, str) and hmac.compare_digest(saved, execution_context)
+
+    def _replay(self, record: dict[str, Any] | None, execution_context: str) -> None:
+        if record and not self._same_execution(record, execution_context):
+            raise HubError(
+                "An earlier write used a different connection or tool revision. Inspect its outcome before making a new request; it will not be replayed or executed again in this window.",
+                409,
+                code="idempotency_context_changed",
+            )
+        if record and record.get("state") == "done":
+            raise Completed(record["result"], "idempotent_replay")
+        raise HubError(
+            "An identical write is in progress or has an uncertain outcome. Wait and check its result; it will not be executed twice.",
+            409,
+            code="idempotency_pending",
+            retry_after=1,
         )
 
     async def _consume_approval(self, identifier: str, fingerprint: str, idempotent: bool) -> None:
@@ -239,6 +300,9 @@ class Gateway:
         self, name: str, arguments: dict[str, Any], context: RequestContext
     ) -> dict[str, Any]:
         started = time.monotonic()
+        # Only protocol-sized names enter telemetry, logs, provenance or audit records.
+        valid_name = bool(re.fullmatch(r"[a-z0-9_-]{1,64}\.[A-Za-z0-9_-]{1,128}", name))
+        name = name if valid_name else "invalid_tool"
         request_id = str(uuid.uuid4())
         context.request_id = request_id
         server, separator, tool_name = name.partition(".")
@@ -249,6 +313,7 @@ class Gateway:
         idem_owner = False
         invoked = False
         approval_id = None
+        encrypted_context = None
         secret_token = None
         task = asyncio.current_task()
         if task:
@@ -270,7 +335,7 @@ class Gateway:
                         "_omitted": "Arguments exceeded JSON nesting, element or encoding limits"
                     }
                     raise
-                if not separator or not server or not tool_name:
+                if not valid_name or not separator or not server or not tool_name:
                     raise HubError(
                         "Use {server}.{tool}; call hub.discover_tools to find valid names",
                         code="invalid_tool",
@@ -338,7 +403,8 @@ class Gateway:
                         404,
                         code="unknown_tool",
                     )
-                kind = tool["category"]
+                # Re-evaluate persisted catalogs as well as freshly discovered tools.
+                kind = category(tool)[0]
                 if not access.permits(server, kind):
                     reason = "capability" if access.capabilities(server) else "server"
                     self.metrics.denials.labels(server, kind, reason).inc()
@@ -352,18 +418,93 @@ class Gateway:
                     )
                 fingerprint = digest(context.principal.id + "\0" + name + "\0" + dumps(clean))
                 validate_arguments(tool["inputSchema"], clean)
-                if kind == "destructive":
-                    approval_id = await self._approval(
-                        context, name, clean, fingerprint, definition, access
+                resolved = await self.credentials.resolve(
+                    context.principal,
+                    server,
+                    definition.get("policy", entry.get("policy", "both")),
+                    context.credentials_header,
+                    required_fields=definition.get("user_env_fields", []),
+                )
+                source = resolved.source
+                self.metrics.credentials.labels(server, source).inc()
+                global_values = await self.credentials.global_env(server, running=True)
+                session = self.upstreams.sessions.get(server)
+                execution_context = "execution-v1:" + digest(
+                    dumps(
+                        {
+                            "client_id": context.principal.client_id,
+                            "kind": context.principal.kind,
+                            "credentials": resolved.credentials,
+                            "credentials_source": source,
+                            "global_env": global_values,
+                            "policy": definition.get("policy", entry.get("policy", "both")),
+                            "code_version": entry.get("code_version", ""),
+                            "endpoint": getattr(session, "url", entry.get("url", "")),
+                            "schema": digest(dumps(tool["inputSchema"])),
+                            "category": kind,
+                        }
                     )
+                )
+                encrypted_context = self.credentials.cipher.encrypt(execution_context)
+                known_secrets = (
+                    secret_values(resolved.credentials)
+                    + secret_values(global_values)
+                    + (
+                        self.settings.hub_registration_secret,
+                        self.settings.hub_upstream_secret,
+                        self.upstreams.secret(server, server in access.definitions),
+                    )
+                )
+                secret_token = active_secrets.set(known_secrets)
                 try:
                     self._guard(name, clean)
                 except HubError:
                     self.metrics.blocked.labels(server).inc()
                     raise
                 if kind != "read" and definition.get("idempotency", True):
+                    existing = await self.store.get("idem:" + fingerprint)
+                    if existing:
+                        self._replay(existing, execution_context)
+                circuit = self.upstreams.circuit(server)
+                if circuit.opened:
+                    raise HubError(
+                        "Upstream circuit is open; the hub will probe recovery automatically. Use hub.discover_tools.",
+                        502,
+                        code="circuit_open",
+                    )
+                if not session or not session.alive:
+                    raise HubError(
+                        "Upstream is disconnected. Call hub.discover_tools; the hub is reconnecting.",
+                        502,
+                        code="disconnected",
+                    )
+                if not entry.get("tools_validated", False):
+                    raise HubError(
+                        "Tool catalog is not currently validated; wait for rediscovery",
+                        503,
+                        code="catalog_unavailable",
+                    )
+                if kind == "destructive":
+                    approval_id = await self._approval(
+                        context,
+                        name,
+                        clean,
+                        fingerprint,
+                        definition,
+                        access,
+                        execution_context,
+                        {
+                            "credentials_source": source,
+                            "code_version": entry.get("code_version", ""),
+                        },
+                    )
+                if kind != "read" and definition.get("idempotency", True):
                     idem_key = "idem:" + fingerprint
-                    claim = {"state": "pending", "request_id": request_id}
+                    claim = {
+                        "state": "pending",
+                        "request_id": request_id,
+                        "execution_context": encrypted_context,
+                    }
                     idem_owner = await self.store.put(
                         idem_key,
                         claim,
@@ -375,55 +516,17 @@ class Gateway:
                     )
                     if not idem_owner:
                         stored = await self.store.get(idem_key)
-                        if stored and stored.get("state") == "done":
-                            raise Completed(stored["result"], "idempotent_replay")
-                        raise HubError(
-                            "An identical write is in progress or has an uncertain outcome. Wait and check its result; it will not be executed twice.",
-                            409,
-                            code="idempotency_pending",
-                            retry_after=1,
-                        )
-                circuit = self.upstreams.circuit(server)
-                if circuit.opened:
-                    raise HubError(
-                        "Upstream circuit is open; the hub will probe recovery automatically. Use hub.discover_tools.",
-                        502,
-                        code="circuit_open",
-                    )
-                session = self.upstreams.sessions.get(server)
-                if not session or not session.alive:
-                    raise HubError(
-                        "Upstream is disconnected. Call hub.discover_tools; the hub is reconnecting.",
-                        502,
-                        code="disconnected",
-                    )
-                resolved = await self.credentials.resolve(
-                    context.principal,
-                    server,
-                    definition.get("policy", entry.get("policy", "both")),
-                    context.credentials_header,
-                    required_fields=definition.get("user_env_fields", []),
-                )
-                source = resolved.source
-                self.metrics.credentials.labels(server, source).inc()
-                global_values = await self.credentials.global_env(server, running=True)
-                known_secrets = (
-                    secret_values(resolved.credentials)
-                    + secret_values(global_values)
-                    + (
-                        self.settings.hub_registration_secret,
-                        self.settings.hub_upstream_secret,
-                        self.upstreams.secret(server, server in access.definitions),
-                    )
-                )
-                secret_token = active_secrets.set(known_secrets)
+                        self._replay(stored, execution_context)
                 forwarded = dict(clean)
                 if tool.get("accepts_credentials"):
                     forwarded["credentials"] = resolved.credentials
-                ceiling = definition.get("call_timeout") or self.settings.upstream_call_tool_timeout
+                ceiling = min(
+                    definition.get("call_timeout") or self.settings.upstream_call_tool_timeout,
+                    self.settings.upstream_call_tool_timeout,
+                )
                 budget = min(
                     definition.get("read_timeout") or self.settings.session_read_timeout,
-                    ceiling - 0.1,
+                    ceiling * 0.9,
                 )
                 if approval_id:
                     await self._consume_approval(
@@ -558,7 +661,11 @@ class Gateway:
                                 await asyncio.shield(
                                     self.store.put(
                                         idem_key,
-                                        {"state": "done", "result": result},
+                                        {
+                                            "state": "done",
+                                            "result": result,
+                                            "execution_context": encrypted_context,
+                                        },
                                         ttl=self.settings.idempotency_ttl,
                                     )
                                 )
