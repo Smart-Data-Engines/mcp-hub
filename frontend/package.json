@@ -11,7 +11,7 @@
   "dependencies": {
     "@codemirror/lang-python": "^6.2.1",
     "@codemirror/lang-yaml": "^6.1.2",
-    "@codemirror/view": "^6.38.0",
+    "@codemirror/view": "^6.43.15",
     "codemirror": "^6.0.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
@@ -21,7 +21,7 @@
     "@playwright/test": "^1.55.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "prettier": "3.6.2",
+    "prettier": "3.9.10",
     "typescript": "~5.9.2",
     "vite": "^7.1.0"
   }
