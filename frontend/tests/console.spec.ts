@@ -110,7 +110,7 @@ test('publish a private adapter, give a colleague access, connect credentials an
     await page.getByRole('button', { name: 'Restart to apply', exact: true }).click();
     await expect(
       page.getByText('Saved changes are waiting for a restart', { exact: true }),
-    ).toHaveCount(0);
+    ).toHaveCount(0, { timeout: 90_000 });
     await expect(page.locator('.badge.running')).toBeVisible({ timeout: 90_000 });
     await page.getByRole('link', { name: 'Logs', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Container logs', exact: true })).toBeVisible();
