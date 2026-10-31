@@ -93,6 +93,8 @@ test('publish a private adapter, give a colleague access, connect credentials an
     const start = page.waitForResponse(
       (response) =>
         response.url().endsWith(`/${name}/start`) && response.request().method() === 'POST',
+      // A cold worker can install dependencies before registering (up to 60s).
+      { timeout: 90_000 },
     );
     await page.getByRole('button', { name: 'Start', exact: true }).click();
     expect((await start).ok()).toBe(true);
