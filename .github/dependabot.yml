@@ -9,6 +9,11 @@ updates:
       timezone: Europe/Warsaw
     open-pull-requests-limit: 3
     labels: [dependencies]
+    # Routine version PRs stay on the reviewed major lines. Security updates
+    # use a separate stream and are not restricted by allow.update-types.
+    allow:
+      - dependency-name: '*'
+        update-types: [version-update:semver-minor, version-update:semver-patch]
     groups:
       python-compatible:
         update-types: [minor, patch]
@@ -21,6 +26,9 @@ updates:
       timezone: Europe/Warsaw
     open-pull-requests-limit: 3
     labels: [dependencies]
+    allow:
+      - dependency-name: '*'
+        update-types: [version-update:semver-minor, version-update:semver-patch]
     groups:
       console-compatible:
         update-types: [minor, patch]
@@ -39,9 +47,11 @@ updates:
   - package-ecosystem: docker
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: '07:45'
       timezone: Europe/Warsaw
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
     labels: [dependencies]
+    groups:
+      runtime-images:
+        patterns: ['*']
