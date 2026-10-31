@@ -3,11 +3,10 @@ updates:
   - package-ecosystem: uv
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: '07:00'
       timezone: Europe/Warsaw
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
     labels: [dependencies]
     # Routine version PRs stay on the reviewed major lines. Security updates
     # use a separate stream and are not restricted by allow.update-types.
@@ -20,11 +19,10 @@ updates:
   - package-ecosystem: npm
     directory: /frontend
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: '07:15'
       timezone: Europe/Warsaw
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
     labels: [dependencies]
     allow:
       - dependency-name: '*'
@@ -35,11 +33,10 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: '07:30'
       timezone: Europe/Warsaw
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
     labels: [dependencies]
     groups:
       actions:
@@ -50,8 +47,7 @@ updates:
       interval: monthly
       time: '07:45'
       timezone: Europe/Warsaw
-    open-pull-requests-limit: 1
+    # Base-runtime migrations require gateway and adapter qualification.
+    # A zero version-PR limit leaves the separate security-update stream intact.
+    open-pull-requests-limit: 0
     labels: [dependencies]
-    groups:
-      runtime-images:
-        patterns: ['*']
