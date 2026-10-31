@@ -24,7 +24,7 @@ dependencies = [
 dev = [
   "pytest>=8.4,<10", "pytest-asyncio>=1,<2", "pytest-cov>=6,<8",
   "fakeredis[lua]>=2.30,<3", "hypothesis>=6.135,<7", "ruff>=0.12,<1",
-  "mypy>=1.16,<2", "types-PyYAML>=6,<7", "types-docker>=7,<8",
+  "mypy>=1.16,<3", "types-PyYAML>=6,<7", "types-docker>=7,<8",
 ]
 
 [project.scripts]

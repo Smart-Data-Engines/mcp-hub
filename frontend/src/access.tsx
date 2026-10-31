@@ -804,17 +804,15 @@ export function GroupsEditor({
     ...data.servers,
     ...Object.keys(mapping)
       .filter((key) => !data.servers.some((s) => s.name === key))
-      .map(
-        (key): AccessServer => ({
-          name: key,
-          description: 'Server is no longer registered',
-          visibility: 'private',
-          owner: '',
-          managed: false,
-          available: false,
-          status: 'offline',
-        }),
-      ),
+      .map((key): AccessServer => ({
+        name: key,
+        description: 'Server is no longer registered',
+        visibility: 'private',
+        owner: '',
+        managed: false,
+        available: false,
+        status: 'offline',
+      })),
   ];
   const filtered = serverOptions.filter((s) =>
     `${s.name} ${s.description}`.toLowerCase().includes(search.toLowerCase()),

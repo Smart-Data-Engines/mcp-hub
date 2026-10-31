@@ -11,6 +11,15 @@ dependencies with `uv sync --frozen --extra dev` and console dependencies with
 Docker/browser tests need the local demo stack and must run sequentially when
 they share its first-party console login.
 
+Routine Python and npm version-update PRs are limited to minor and patch releases.
+Major API/compiler migrations need a dedicated review against the supported
+gateway, adapter and browser profiles. Dependabot security updates use a separate
+stream and are not restricted by `allow.update-types`; see the
+[Dependabot reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#update-types-allow).
+Base-image proposals are grouped into one monthly PR. GitHub Actions stay grouped
+and pinned to verified full commit hashes. Keep security scanning and the required
+CI checks enabled when adjusting dependency-update policy.
+
 Enable the repository's local publication guard:
 
 ```sh
