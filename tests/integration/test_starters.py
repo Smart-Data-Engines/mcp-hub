@@ -1,3 +1,4 @@
+import ast
 import asyncio
 import io
 import json
@@ -318,7 +319,14 @@ def test_starter_versions_are_pinned_and_contain_complete_public_source():
     )
     a, b = starters.snapshot(d), starters.snapshot(d)
     assert a == b and "async def get_repository" in a.files["server.py"]
-    assert "https://api.github.com" in a.files["github_client.py"]
+    module = ast.parse(a.files["github_client.py"])
+    api = next(
+        node.value
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "API" for target in node.targets)
+    )
+    assert isinstance(api, ast.Constant) and api.value == "https://api.github.com"
     assert "credentials" in a.files["server.py"]
     d.starter_version = "not-shipped"
     with pytest.raises(HubError, match="not available"):
