@@ -5,6 +5,8 @@ The Redis backup test uses a unique namespace, separate from the demo gateway.
 """
 
 import asyncio
+import base64
+import importlib.util
 import json
 import os
 import secrets
@@ -33,6 +35,9 @@ from mcp_hub.runtime import container_name
 from mcp_hub.security import Cipher
 from mcp_hub.store import Store
 from tests.integration.test_live_protocol import serving
+
+_RESTORE_CHECK = Path(__file__).resolve().parents[2] / "deploy/restore_check.py"
+_REDIS_DUMPS = Path(__file__).resolve().parents[1] / "fixtures/redis_unordered_dumps.json"
 
 pytestmark = [
     pytest.mark.docker,
@@ -655,3 +660,81 @@ async def test_native_redis_backup_restore_and_outbox_preservation():
             if keys:
                 await redis.delete(*keys)
     daemon.close()
+
+
+async def test_recovery_checker_verifies_unordered_native_values_and_rejects_corruption():
+    spec = importlib.util.spec_from_file_location("recovery_checker", _RESTORE_CHECK)
+    assert spec and spec.loader
+    checker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(checker)
+    fixtures = json.loads(await asyncio.to_thread(_REDIS_DUMPS.read_text))
+    daemon = docker.from_env()
+    try:
+        container = daemon.containers.get("mcp-hub-store-1")
+        address = container.attrs["NetworkSettings"]["Networks"]["mcp-hub-state"]["IPAddress"]
+        password = dotenv_values(".env")["STORE_PASSWORD"]
+        key = "qa:recovery-oracle:" + uuid.uuid4().hex
+        async with (
+            Redis.from_url(f"redis://:{password}@{address}:6379/0") as redis,
+            Redis.from_url(f"redis://:{password}@{address}:6379/1") as oracle,
+        ):
+            try:
+                for kind in ("hash", "set"):
+                    if kind == "hash":
+                        expected = {f"field-{i}": "value-" * 40 + str(i) for i in range(30)}
+                        await redis.hset(key, mapping=expected)
+                    else:
+                        await redis.sadd(key, *(f"member-{i}" for i in range(100)))
+                    payload = await redis.dump(key)
+                    assert payload
+                    assert (
+                        await checker.verify_permanent_payload(redis, oracle, key, payload)
+                        == "dump"
+                    )
+                    await redis.delete(key)
+                    await redis.restore(key, 0, payload)
+                    await checker.verify_permanent_payload(redis, oracle, key, payload)
+                    assert not await oracle.exists(key)
+                    # Independent Redis producers captured two valid encodings
+                    # of the same synthetic values. At least one must differ
+                    # from this process's DUMP, so the fallback is always tested.
+                    encodings = [base64.b64decode(item) for item in fixtures[kind]]
+                    assert len(set(encodings)) == 2
+                    native_dump = await redis.dump(key)
+                    payload = next(item for item in encodings if item != native_dump)
+                    assert (
+                        await checker.verify_permanent_payload(redis, oracle, key, payload)
+                        == "unordered"
+                    )
+                    assert not await oracle.exists(key)
+                    # Keep the size unchanged: detecting only missing fields or
+                    # cardinality would miss this corruption.
+                    if kind == "hash":
+                        await redis.hset(key, "field-0", "changed-value")
+                    else:
+                        await redis.srem(key, "member-0")
+                        await redis.sadd(key, "changed-member")
+                    with pytest.raises(AssertionError, match=f"Restored {kind} differs"):
+                        await checker.verify_permanent_payload(redis, oracle, key, payload)
+                    assert not await oracle.exists(key)
+                    await redis.delete(key)
+                    # A type change must never pass the unordered comparison.
+                    if kind == "hash":
+                        await redis.sadd(key, "wrong-type")
+                    else:
+                        await redis.hset(key, "wrong", "type")
+                    with pytest.raises(AssertionError, match="Redis type differs"):
+                        await checker.verify_permanent_payload(redis, oracle, key, payload)
+                    assert not await oracle.exists(key)
+                    await redis.delete(key)
+                await redis.set(key, "original")
+                payload = await redis.dump(key)
+                await redis.set(key, "modified")
+                with pytest.raises(AssertionError, match="payload differs"):
+                    await checker.verify_permanent_payload(redis, oracle, key, payload)
+                assert not await oracle.exists(key)
+            finally:
+                await redis.delete(key)
+                await oracle.delete(key)
+    finally:
+        daemon.close()

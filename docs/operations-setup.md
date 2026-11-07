@@ -80,8 +80,11 @@ explicit retention policy; encrypted backup recovery points may retain older
 events until their own retention expires.
 
 The daily drill reads a snapshot from restic, starts a new internal Docker network
-and disposable Redis, and compares permanent native DUMP payloads and TTLs. It
-checks decryption of recovered credential records with the separate live key.
+and disposable Redis, and compares permanent native DUMP payloads and TTLs. If a
+hash or set has a different native serialization order, it compares the exact
+fields, values or members against an independent native restore in another
+database of the same disposable Redis. Other payload differences fail the drill.
+It checks decryption of recovered credential records with the separate live key.
 The checker has no production network, Docker socket, registry, gateway or source
 adapter. It does not start workers or call source-system APIs. Resources have
 unique names and are removed in a finally block. Weekly checks read all encrypted

@@ -9,6 +9,7 @@ import base64
 import json
 import time
 from pathlib import Path
+from typing import Literal
 
 from dotenv import dotenv_values
 from redis.asyncio import Redis
@@ -16,6 +17,32 @@ from redis.asyncio import Redis
 from mcp_hub.cli import import_state
 from mcp_hub.config import Settings
 from mcp_hub.security import Cipher
+
+
+async def verify_permanent_payload(
+    redis: Redis, oracle: Redis, key: str, payload: bytes
+) -> Literal["dump", "unordered"]:
+    if await redis.dump(key) == payload:
+        return "dump"
+    kind = await redis.type(key)
+    # Redis hash tables may serialize fields/members in a different order after
+    # RESTORE. Compare exact native values against an independent native RESTORE
+    # in another database of this disposable Redis, without application readers.
+    assert kind in (b"hash", b"set"), "Restored payload differs from snapshot"
+    await oracle.restore(key, 0, payload)
+    try:
+        assert await oracle.type(key) == kind, "Restored Redis type differs from snapshot"
+        if kind == b"hash":
+            assert await redis.hgetall(key) == await oracle.hgetall(key), (
+                "Restored hash differs from snapshot"
+            )
+        else:
+            assert await redis.smembers(key) == await oracle.smembers(key), (
+                "Restored set differs from snapshot"
+            )
+    finally:
+        await oracle.delete(key)
+    return "unordered"
 
 
 async def check() -> None:
@@ -26,17 +53,21 @@ async def check() -> None:
     cipher = Cipher(key)
     age = max(0, int(time.time() * 1000) - snapshot["created_at_ms"])
     count = await import_state(settings, snapshot)
-    permanent, decrypted = 0, 0
-    async with Redis.from_url(settings.store_url, decode_responses=False) as redis:
+    permanent, decrypted, unordered = 0, 0, 0
+    async with (
+        Redis.from_url(settings.store_url, decode_responses=False) as redis,
+        Redis.from_url("redis://restore-store:6379/1", decode_responses=False) as oracle,
+    ):
         for item in snapshot["entries"]:
             suffix = item["key"][len(settings.store_prefix) :]
             assert not suffix.startswith(
                 ("oauth:access:", "oauth:refresh:", "oauth:principal:", "oauth:ui:")
             )
             if item["ttl_ms"] == -1:
-                # Compare native payloads against the producer, rather than
-                # serializing through the same application reader twice.
-                assert await redis.dump(item["key"]) == base64.b64decode(item["dump"])
+                mode = await verify_permanent_payload(
+                    redis, oracle, item["key"], base64.b64decode(item["dump"], validate=True)
+                )
+                unordered += mode == "unordered"
                 assert await redis.pttl(item["key"]) == -1
                 permanent += 1
             elif item["ttl_ms"] > age + 10_000:
@@ -55,6 +86,7 @@ async def check() -> None:
             {
                 "restored_keys": count,
                 "exact_permanent_payloads": permanent,
+                "unordered_native_payloads_verified": unordered,
                 "encrypted_records_decrypted": decrypted,
                 "production_connections": 0,
             }
