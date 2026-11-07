@@ -160,8 +160,9 @@ async def test_included_notion_starts_with_read_tools_without_a_provider_token()
                 headers={"Accept": "application/json, text/event-stream"},
             )
             assert response.status_code == 200
-            assert "error" in response.json() or response.json().get("result", {}).get("isError")
-            assert "personal credentials" in response.text.lower()
+            result = response.json()["result"]
+            assert result["isError"]
+            assert result["_meta"]["hub/error"] == "credentials_required"
         finally:
             assert (await client.delete(base)).status_code == 204
 
