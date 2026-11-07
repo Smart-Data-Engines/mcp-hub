@@ -52,7 +52,7 @@ Open **MCP servers → Create server** and choose a starter:
 - **Notion** searches shared page titles and reads pages, blocks, databases and
   data-source rows. Add an internal connection token in **Connection**, give it
   **Read content** capability in Notion, and share selected pages with it. Test
-  the saved connection, then start the server. All five tools are read-only.
+  the saved connection, then start the server. All six tools are read-only.
 - **Custom Python server** keeps the existing Git-based authoring flow.
 
 GitHub uses a fine-grained personal access token restricted to the selected

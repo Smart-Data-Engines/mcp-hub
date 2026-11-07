@@ -140,6 +140,7 @@ async def test_included_notion_starts_with_read_tools_without_a_provider_token()
             assert {t["name"].split(".", 1)[1] for t in tools} == {
                 "search",
                 "get_page",
+                "get_block",
                 "list_blocks",
                 "get_database",
                 "query_data_source",

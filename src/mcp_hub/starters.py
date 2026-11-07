@@ -36,7 +36,14 @@ CATALOG: dict[str, dict[str, Any]] = {
     "notion": {
         "name": "Notion",
         "description": "Read pages, blocks and data sources shared with your Notion connection.",
-        "tools": ["search", "get_page", "list_blocks", "get_database", "query_data_source"],
+        "tools": [
+            "search",
+            "get_page",
+            "get_block",
+            "list_blocks",
+            "get_database",
+            "query_data_source",
+        ],
         "account_required": True,
     },
 }

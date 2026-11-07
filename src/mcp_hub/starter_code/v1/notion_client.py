@@ -15,6 +15,7 @@ API = "https://api.notion.com"
 API_VERSION = "2026-03-11"
 MAX_RESPONSE = 2 * 1024 * 1024
 MAX_ITEM = 6000
+MAX_WIRE = 48000
 
 
 def connection(values: dict[str, Any]) -> str:
@@ -61,7 +62,7 @@ async def request(
     query: str = "",
 ) -> dict[str, Any]:
     token = connection({"token": token})
-    if operation not in {"user", "search", "page", "blocks", "database", "query"}:
+    if operation not in {"user", "search", "page", "block", "blocks", "database", "query"}:
         raise HubError("Unsupported Notion starter operation", 422)
     listing = operation in {"search", "blocks", "query"}
     parameters = paging(limit, cursor) if listing else {}
@@ -71,6 +72,7 @@ async def request(
         "user": "/v1/users/me",
         "search": "/v1/search",
         "page": f"/v1/pages/{item_id}",
+        "block": f"/v1/blocks/{item_id}",
         "blocks": f"/v1/blocks/{item_id}/children",
         "database": f"/v1/databases/{item_id}",
         "query": f"/v1/data_sources/{item_id}/query",
@@ -126,7 +128,9 @@ async def request(
             expected = (
                 "list"
                 if listing
-                else {"user": "user", "page": "page", "database": "database"}[operation]
+                else {"user": "user", "page": "page", "block": "block", "database": "database"}[
+                    operation
+                ]
             )
             if not isinstance(value, dict) or value.get("object") != expected:
                 raise HubError("Notion returned an unexpected response", 502)
@@ -171,9 +175,27 @@ def text(parts: Any) -> str:
     return "".join(values)
 
 
-def bounded_item(value: dict[str, Any]) -> dict[str, Any]:
+def simple_shape(value: Any) -> bool:
+    pending, nodes = [(value, 0)], 0
+    while pending:
+        item, depth = pending.pop()
+        nodes += 1
+        if depth > 12 or nodes > 512:
+            return False
+        if isinstance(item, dict):
+            if len(item) > 512:
+                return False
+            pending.extend((v, depth + 1) for v in item.values())
+        elif isinstance(item, list):
+            if len(item) > 512:
+                return False
+            pending.extend((v, depth + 1) for v in item)
+    return True
+
+
+def bounded_item(value: dict[str, Any], max_chars: int = MAX_ITEM) -> dict[str, Any]:
     result = {"data": value, "truncated": False}
-    if len(json.dumps(result)) <= MAX_ITEM:
+    if simple_shape(value) and len(json.dumps(result)) <= max_chars:
         return result
     title = text(value.get("title"))
     properties = value.get("properties")
@@ -190,9 +212,9 @@ def bounded_item(value: dict[str, Any]) -> dict[str, Any]:
     details = value.get(kind, {}) if isinstance(kind, str) else {}
     excerpt = text(details.get("rich_text")) if isinstance(details, dict) else ""
     summary = {
-        "id": str(value.get("id", ""))[:100],
-        "object": str(value.get("object", ""))[:30],
-        "type": str(kind or "")[:60],
+        "id": "".join(c for c in str(value.get("id", ""))[:64] if 32 <= ord(c) <= 126),
+        "object": "".join(c for c in str(value.get("object", ""))[:30] if 32 <= ord(c) <= 126),
+        "type": "".join(c for c in str(kind or "")[:60] if 32 <= ord(c) <= 126),
         "has_children": bool(value.get("has_children")),
         "title": title[:500],
         "excerpt": excerpt[:2000],
@@ -200,9 +222,11 @@ def bounded_item(value: dict[str, Any]) -> dict[str, Any]:
     result = {
         "data": summary,
         "truncated": True,
-        "note": "This item exceeds the starter output limit. Open the full item in Notion. Child blocks can be read separately using their IDs.",
+        "note": "This item exceeds the starter output limit. Use get_block for one block, or open the full item in Notion.",
     }
-    while len(json.dumps(result)) > MAX_ITEM:
+    while len(json.dumps(result)) > max_chars:
+        if not summary["excerpt"] and not summary["title"]:
+            raise HubError("Notion item metadata exceeds the starter output limit", 413)
         summary["excerpt"] = str(summary["excerpt"])[: len(str(summary["excerpt"])) // 2]
         summary["title"] = str(summary["title"])[: len(str(summary["title"])) // 2]
     return result
@@ -220,6 +244,27 @@ def result_page(value: dict[str, Any]) -> dict[str, Any]:
             key: str(value["request_status"].get(key, ""))[:200]
             for key in ["type", "incomplete_reason"]
         }
+    # Budget the MCP envelope, not just compact provider JSON. FastMCP pretty
+    # prints text and may also include structuredContent. Keep every item ID,
+    # its explicit truncation flag and the provider cursor while reducing text.
+    budget = MAX_ITEM
+    while (
+        len(
+            json.dumps(
+                {
+                    "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+                    "structuredContent": result,
+                }
+            )
+        )
+        > MAX_WIRE
+    ):
+        if budget == 512:
+            raise HubError(
+                "Notion result cannot fit the starter output budget. Request fewer items", 413
+            )
+        budget = max(512, budget // 2)
+        result["items"] = [bounded_item(row, budget) for row in value["results"]]
     return result
 
 

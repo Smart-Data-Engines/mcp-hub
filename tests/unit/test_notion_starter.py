@@ -2,10 +2,12 @@ import json
 
 import httpx
 import pytest
+from mcp.types import CallToolResult
 
 from mcp_hub import starters
 from mcp_hub.models import HubError, ServerDefinition
 from mcp_hub.starter_code.v1 import notion, notion_client
+from mcp_hub.store import dumps
 
 IDENTITY = {
     "_hub_user_id": "person",
@@ -37,7 +39,15 @@ async def test_notion_tools_use_fixed_read_routes_each_callers_token_and_paginat
             )
         assert request.method == "GET"
         return httpx.Response(
-            200, json={"object": "database" if "/databases/" in path else "page", "id": ITEM}
+            200,
+            json={
+                "object": "database"
+                if "/databases/" in path
+                else "block"
+                if "/blocks/" in path
+                else "page",
+                "id": ITEM,
+            },
         )
 
     monkeypatch.setattr(
@@ -50,12 +60,14 @@ async def test_notion_tools_use_fixed_read_routes_each_callers_token_and_paginat
     assert page["has_more"] and page["next_cursor"] == "opaque-next-cursor"
     await notion.get_page(ITEM.replace("-", ""), second)
     await notion.list_blocks(ITEM, 2, "opaque-next-cursor", first)
+    await notion.get_block(ITEM, second)
     await notion.get_database(ITEM, second)
     await notion.query_data_source(ITEM, 2, "opaque-next-cursor", first)
     assert [r.url.path for r in calls] == [
         "/v1/search",
         f"/v1/pages/{ITEM}",
         f"/v1/blocks/{ITEM}/children",
+        f"/v1/blocks/{ITEM}",
         f"/v1/databases/{ITEM}",
         f"/v1/data_sources/{ITEM}/query",
     ]
@@ -64,11 +76,12 @@ async def test_notion_tools_use_fixed_read_routes_each_callers_token_and_paginat
         "Bearer synthetic-second-token",
         "Bearer " + TOKEN,
         "Bearer synthetic-second-token",
+        "Bearer synthetic-second-token",
         "Bearer " + TOKEN,
     ]
     assert json.loads(calls[0].content) == {"query": "Roadmap", "page_size": 2}
     assert calls[2].url.params["start_cursor"] == "opaque-next-cursor"
-    assert json.loads(calls[4].content) == {"page_size": 2, "start_cursor": "opaque-next-cursor"}
+    assert json.loads(calls[5].content) == {"page_size": 2, "start_cursor": "opaque-next-cursor"}
     assert notion.account(IDENTITY) == "synthetic-shared-token"
     with pytest.raises(HubError):
         notion.account({**IDENTITY, "token": ""})
@@ -87,6 +100,7 @@ async def test_all_notion_tools_declare_read_only_and_explicit_caller_contract()
     assert {t.name for t in tools} == {
         "search",
         "get_page",
+        "get_block",
         "list_blocks",
         "get_database",
         "query_data_source",
@@ -100,6 +114,7 @@ async def test_all_notion_tools_declare_read_only_and_explicit_caller_contract()
     "operation,args",
     [
         (notion.get_page, {"page_id": "../../users/me"}),
+        (notion.get_block, {"block_id": "not-an-id"}),
         (notion.get_database, {"database_id": "https://other.example.test/private"}),
         (notion.query_data_source, {"data_source_id": ITEM, "limit": 21}),
         (notion.list_blocks, {"block_id": ITEM, "limit": True}),
@@ -219,3 +234,56 @@ def test_notion_source_bundle_is_complete_and_existing_starter_snapshots_are_unc
     }.items():
         legacy = definition.model_copy(update={"starter_id": kind})
         assert starters.snapshot(legacy).commit == expected
+
+
+@pytest.mark.parametrize("operation", ["search", "list_blocks", "query_data_source"])
+async def test_actual_mcp_serialization_fits_default_hub_limit_without_losing_ids_or_cursor(
+    monkeypatch, operation
+):
+    from uuid import UUID
+
+    rows = []
+    for i in range(20):
+        rich = [{"type": "text", "text": {"content": '🧪"' * 1400}, "plain_text": '🧪"' * 1400}]
+        row = {
+            "id": str(UUID(int=i + 1)),
+            "object": "block" if operation == "list_blocks" else "page",
+        }
+        if operation == "list_blocks":
+            row.update(type="paragraph", has_children=True, paragraph={"rich_text": rich})
+        else:
+            row["properties"] = {"Title": {"type": "title", "title": rich}}
+        rows.append(row)
+    payload = {
+        "object": "list",
+        "results": rows,
+        "has_more": True,
+        "next_cursor": "continue-with-this-cursor",
+        "request_status": {"type": "incomplete", "incomplete_reason": "query_result_limit_reached"},
+    }
+    monkeypatch.setattr(
+        notion,
+        "client",
+        lambda: httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200, json=payload))
+        ),
+    )
+    args = {"limit": 20, "credentials": {**IDENTITY, "token": TOKEN}}
+    if operation == "list_blocks":
+        args["block_id"] = ITEM
+    if operation == "query_data_source":
+        args["data_source_id"] = ITEM
+    raw = await notion.mcp.call_tool(operation, args)
+    if isinstance(raw, tuple):
+        content, structured = raw
+    else:
+        content, structured = raw, None
+    wire = CallToolResult(content=content, structuredContent=structured).model_dump(
+        mode="json", by_alias=True, exclude_none=True
+    )
+    assert len(dumps(wire)) < 65536
+    actual = structured or json.loads(content[0].text)
+    assert [item["data"]["id"] for item in actual["items"]] == [row["id"] for row in rows]
+    assert all(item["truncated"] for item in actual["items"])
+    assert actual["has_more"] and actual["next_cursor"] == payload["next_cursor"]
+    assert actual["request_status"]["type"] == "incomplete"

@@ -68,6 +68,14 @@ async def get_page(page_id: str, credentials: dict | None = None) -> dict:
 
 
 @mcp.tool(annotations=READ)
+async def get_block(block_id: str, credentials: dict | None = None) -> dict:
+    """Read one block by an ID returned by list_blocks. Use this to read a larger excerpt separately; very large items are explicitly truncated."""
+    token = account(credentials)
+    async with client() as http:
+        return bounded_item(await request(http, token, "block", item_id=block_id))
+
+
+@mcp.tool(annotations=READ)
 async def list_blocks(
     block_id: str, limit: int = 10, cursor: str = "", credentials: dict | None = None
 ) -> dict:

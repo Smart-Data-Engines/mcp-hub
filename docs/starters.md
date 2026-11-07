@@ -69,7 +69,7 @@ search read. If no results are returned, the form explains how to share a page
 and allow time for search indexing; it does not claim the workspace is empty or
 that all page content has been validated. The test never changes Notion content.
 
-The five tools are `search`, `get_page`, `list_blocks`, `get_database`, and
+The six tools are `search`, `get_page`, `get_block`, `list_blocks`, `get_database`, and
 `query_data_source`. Search matches titles, not full text, and is not a complete
 workspace inventory. Databases expose data-source IDs; query those sources to
 read rows. The implementation uses Notion API version `2026-03-11`. Search and
@@ -81,8 +81,11 @@ Lists return at most 20 items per call. When `has_more` is true, pass
 `next_cursor` as the next call's `cursor`. Block children are not fetched
 recursively: read child IDs with `has_children` separately. Inline page properties
 may be partial according to Notion's API. The starter also caps each output item
-and explicitly marks local truncation; open oversized items in Notion to read
-them in full. Provider errors omit response bodies and never include the token.
+and explicitly marks local truncation. The combined page budget preserves all
+item IDs and the continuation cursor, including when text and structured output
+are both present in MCP. Read a block separately with `get_block` for a larger
+excerpt, or open oversized items in Notion to read them in full. Provider errors
+omit response bodies and never include the token.
 
 This is a neutral public example. An existing custom server connected to Notion
 keeps its own code, credentials and tools. Use your own connection token; do not
