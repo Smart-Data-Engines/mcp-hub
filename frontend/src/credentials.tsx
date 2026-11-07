@@ -190,7 +190,10 @@ export function PersonalCredentials({
               ))}
             </select>
           </Field>
-          {service && servers.find((s) => s.name === service)?.starter_id === 'github' ? (
+          {service &&
+          ['github', 'notion'].includes(
+            servers.find((s) => s.name === service)?.starter_id || '',
+          ) ? (
             <StarterConnection
               key={service}
               server={servers.find((s) => s.name === service)!}

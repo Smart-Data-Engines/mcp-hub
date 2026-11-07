@@ -49,6 +49,10 @@ Open **MCP servers → Create server** and choose a starter:
   the private server, save your connection in **Connection**, choose **Test GitHub
   connection**, then **Start GitHub server**. Use **Access** to grant colleagues
   read access; each person adds their own connection under **My credentials**.
+- **Notion** searches shared page titles and reads pages, blocks, databases and
+  data-source rows. Add an internal connection token in **Connection**, give it
+  **Read content** capability in Notion, and share selected pages with it. Test
+  the saved connection, then start the server. All six tools are read-only.
 - **Custom Python server** keeps the existing Git-based authoring flow.
 
 GitHub uses a fine-grained personal access token restricted to the selected
@@ -63,7 +67,7 @@ Included starters are versioned public examples, independent of the customer's
 Git registry. They work with a read-only registry. Their complete source can be
 browsed or downloaded from **Source** and copied into a Custom server to extend.
 They use token-based service authorization; company sign-in does not automatically
-grant GitHub access. See [starter setup and extension](docs/starters.md).
+grant access to GitHub or Notion. See [starter setup and extension](docs/starters.md).
 
 ## Included
 

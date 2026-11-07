@@ -114,6 +114,60 @@ async def test_included_demo_runs_without_changing_the_git_registry():
     assert await asyncio.to_thread(revision) == before
 
 
+async def test_included_notion_starts_with_read_tools_without_a_provider_token():
+    name = "qa-notion-" + uuid.uuid4().hex[:10]
+    base = "/admin/api/servers-dynamic/" + name
+    async with httpx.AsyncClient(
+        base_url="http://localhost:8000", timeout=120, trust_env=False
+    ) as client:
+        await login(client)
+        response = await client.post(
+            "/admin/api/servers-dynamic", json={"name": name, "starter_id": "notion"}
+        )
+        assert response.status_code == 201, response.text
+        try:
+            assert response.json()["user_env_fields"] == ["token"]
+            assert (await client.post(base + "/start", json={})).status_code == 200
+            await wait_tool(client, name + ".search")
+            response = await client.post(
+                "/mcp",
+                json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+                headers={"Accept": "application/json, text/event-stream"},
+            )
+            tools = [
+                t for t in response.json()["result"]["tools"] if t["name"].startswith(name + ".")
+            ]
+            assert {t["name"].split(".", 1)[1] for t in tools} == {
+                "search",
+                "get_page",
+                "get_block",
+                "list_blocks",
+                "get_database",
+                "query_data_source",
+            }
+            assert all(
+                t["annotations"]["readOnlyHint"]
+                and "credentials" not in t["inputSchema"]["properties"]
+                for t in tools
+            )
+            response = await client.post(
+                "/mcp",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {"name": name + ".search", "arguments": {"query": "synthetic"}},
+                },
+                headers={"Accept": "application/json, text/event-stream"},
+            )
+            assert response.status_code == 200
+            result = response.json()["result"]
+            assert result["isError"]
+            assert result["_meta"]["hub/error"] == "credentials_required"
+        finally:
+            assert (await client.delete(base)).status_code == 204
+
+
 async def login(client):
     redirect = str(client.base_url).rstrip("/") + "/admin/"
     client_id = "mcp-hub-admin"

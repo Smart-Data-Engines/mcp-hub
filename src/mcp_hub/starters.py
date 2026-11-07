@@ -33,7 +33,24 @@ CATALOG: dict[str, dict[str, Any]] = {
         ],
         "account_required": True,
     },
+    "notion": {
+        "name": "Notion",
+        "description": "Read pages, blocks and data sources shared with your Notion connection.",
+        "tools": [
+            "search",
+            "get_page",
+            "get_block",
+            "list_blocks",
+            "get_database",
+            "query_data_source",
+        ],
+        "account_required": True,
+    },
 }
+
+
+def connection_fields(starter_id: str) -> list[str]:
+    return {"github": ["token", "repository"], "notion": ["token"]}.get(starter_id, [])
 
 
 def catalog() -> list[dict]:
@@ -54,9 +71,7 @@ def snapshot(definition: ServerDefinition) -> Snapshot:
         raise HubError("This starter version is not available in this Hub release", 409)
     root = files(SOURCE_VERSIONS[definition.starter_version])
     source = {
-        "server.py": root.joinpath(
-            "github.py" if definition.starter_id == "github" else "demo.py"
-        ).read_text(),
+        "server.py": root.joinpath(definition.starter_id + ".py").read_text(),
         "requirements.txt": "mcp==1.30.0\n",
         "manifest.yaml": yaml.safe_dump(
             {
@@ -92,6 +107,19 @@ def snapshot(definition: ServerDefinition) -> Snapshot:
             "Every tool requires the trusted credentials identity argument; partial personal fields never borrow shared values.\n"
             "GitHub.com is the fixed API host. Lists return a bounded first page, with kind distinguishing issues from pull requests.\n"
             "API reference: https://docs.github.com/en/rest\n"
+        )
+    if definition.starter_id == "notion":
+        source["requirements.txt"] += "httpx==0.28.1\n"
+        source["notion_client.py"] = root.joinpath("notion_client.py").read_text()
+        source["env.yaml"] = "env: [NOTION_TOKEN]\nuser_env: [token]\n"
+        source["README.md"] += (
+            "\n## Notion connection\n\nCreate an internal Notion connection with Read content capability and share selected pages or databases with it.\n"
+            "Personal field: token. Shared administrator field: NOTION_TOKEN. Use the Hub Connection form to save it encrypted and test identity/search read access.\n"
+            "All tools read only. Search matches titles, not full text, and is not a complete workspace inventory. Search and data-source queries use Notion's read-only POST endpoints.\n"
+            "Lists return at most 20 items per call; follow next_cursor when has_more is true. Blocks are not fetched recursively.\n"
+            "Items exceeding the output budget are explicitly marked truncated; Notion may also paginate inline page properties. Use Notion for the complete item.\n"
+            "Notion API 2026-03-11; fixed api.notion.com host, no redirects or external file downloads.\n"
+            "API reference: https://developers.notion.com/reference/intro\n"
         )
     revision = hashlib.sha256(json.dumps(source, sort_keys=True).encode()).hexdigest()[:40]
     return Snapshot(revision, source)

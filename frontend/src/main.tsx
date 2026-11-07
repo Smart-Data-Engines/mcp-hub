@@ -206,7 +206,7 @@ function ServerDetail({
       )}
       <p className="hint">
         {server.starter_id
-          ? `Included ${server.starter_id === 'demo' ? 'Demo' : 'GitHub'} starter · version ${server.starter_version}. No registry changes are needed.`
+          ? `Included ${{ demo: 'Demo', github: 'GitHub', notion: 'Notion' }[server.starter_id]} starter · version ${server.starter_version}. No registry changes are needed.`
           : 'Start and Restart fetch fresh source from Git. Saving files does not change a running container.'}
       </p>
       {server.starter_id === 'demo' && (
@@ -423,7 +423,7 @@ function ServerDetail({
               </form>
             </section>
           )}
-          {tab === 'environment' && server.starter_id === 'github' && (
+          {tab === 'environment' && ['github', 'notion'].includes(server.starter_id || '') && (
             <StarterConnection
               server={server}
               run={run}
@@ -704,7 +704,11 @@ function Servers({
                     view: 'servers',
                     item: created.name,
                     tab:
-                      chosen === 'github' ? 'environment' : chosen === 'demo' ? 'access' : 'source',
+                      chosen && chosen !== 'demo'
+                        ? 'environment'
+                        : chosen === 'demo'
+                          ? 'access'
+                          : 'source',
                   });
                   if (chosen === 'demo') {
                     setServers((old) =>
@@ -719,8 +723,8 @@ function Servers({
                 },
                 starter === 'demo'
                   ? 'Demo ready. Try its hello tool in your AI client.'
-                  : starter === 'github'
-                    ? 'GitHub starter created. Add your connection, test it, then Start.'
+                  : starter
+                    ? 'Starter created. Add your connection, test it, then Start.'
                     : 'Server created. Review the example, then Start to publish its tools.',
               );
             }}

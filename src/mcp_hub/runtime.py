@@ -176,10 +176,8 @@ class Runtime:
             raise HubError("The name hub is reserved", 409)
         if definition.starter_id:
             definition.starter_version = starters.VERSION
-            definition.policy = "user_only" if definition.starter_id == "github" else "global_only"
-            definition.user_env_fields = (
-                ["token", "repository"] if definition.starter_id == "github" else []
-            )
+            definition.user_env_fields = starters.connection_fields(definition.starter_id)
+            definition.policy = "user_only" if definition.user_env_fields else "global_only"
             definition.description = (
                 definition.description or starters.CATALOG[definition.starter_id]["description"]
             )

@@ -50,6 +50,51 @@ truncation flag. GitHub.com is the fixed API host, response bytes are capped and
 redirects are not followed. The starter supports PATs, not GitHub Enterprise or a
 provider OAuth sign-in flow. API reference: [GitHub REST](https://docs.github.com/en/rest).
 
+## Notion
+
+Create a **Notion** starter, then open **Connection**. Create an internal
+connection in [Notion's developer portal](https://www.notion.so/profile/integrations),
+enable only **Read content**, and copy its secret token into the form. In Notion,
+open the pages or databases you want to use and add that connection under
+**Connections**. Access includes child content according to Notion's sharing
+rules. See [connection capabilities](https://developers.notion.com/reference/capabilities).
+
+Personal mode is the default: each person saves their own token. Administrators
+can deliberately configure a shared connection instead. Token encryption, blank
+field preservation, member access checks, the personal-only preference, and
+restart requirements for shared changes work as for GitHub.
+
+**Test Notion connection** checks the token's bot identity and makes one bounded
+search read. If no results are returned, the form explains how to share a page
+and allow time for search indexing; it does not claim the workspace is empty or
+that all page content has been validated. The test never changes Notion content.
+
+The six tools are `search`, `get_page`, `get_block`, `list_blocks`, `get_database`, and
+`query_data_source`. Search matches titles, not full text, and is not a complete
+workspace inventory. Databases expose data-source IDs; query those sources to
+read rows. The implementation uses Notion API version `2026-03-11`. Search and
+data-source queries use Notion's read-only POST endpoints; other reads use GET.
+Only fixed routes on `api.notion.com` are available. Redirects and external
+attachment downloads are not followed.
+
+Lists return at most 20 items per call. When `has_more` is true, pass
+`next_cursor` as the next call's `cursor`. Block children are not fetched
+recursively: read child IDs with `has_children` separately. Inline page properties
+may be partial according to Notion's API. The starter also caps each output item
+and explicitly marks local truncation. The combined page budget preserves all
+item IDs and the continuation cursor, including when text and structured output
+are both present in MCP. Read a block separately with `get_block` for a larger
+excerpt, or open oversized items in Notion to read them in full. Provider errors
+omit response bodies and never include the token.
+
+This is a neutral public example. An existing custom server connected to Notion
+keeps its own code, credentials and tools. Use your own connection token; do not
+reuse another integration's credentials for initial testing.
+
+API references: [search](https://developers.notion.com/reference/post-search),
+[database metadata](https://developers.notion.com/reference/retrieve-database),
+[data-source queries](https://developers.notion.com/reference/query-a-data-source).
+
 ## Source and customization
 
 Included source is read-only. **Source → Download complete starter** contains

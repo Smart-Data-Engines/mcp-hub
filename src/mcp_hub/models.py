@@ -45,7 +45,7 @@ class ServerDefinition(BaseModel):
     code_version: str = ""
     user_env_fields: list[str] = Field(default_factory=list)
     pinned_ref: str = ""
-    starter_id: Literal["", "demo", "github"] = ""
+    starter_id: Literal["", "demo", "github", "notion"] = ""
     starter_version: str = Field(default="", max_length=40)
     memory_mb: int = Field(default=512, ge=64, le=2048)
     cpus: float = Field(default=1.0, ge=0.1, le=2.0)
