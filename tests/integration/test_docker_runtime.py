@@ -8,6 +8,7 @@ import asyncio
 import json
 import os
 import secrets
+import subprocess
 import textwrap
 import time
 import uuid
@@ -40,6 +41,72 @@ pytestmark = [
         reason="Set MCP_HUB_RUN_DOCKER=1 after make dev; requires Docker socket access",
     ),
 ]
+
+
+async def test_included_demo_runs_without_changing_the_git_registry():
+    values = dotenv_values(".env")
+    repository = str(Path(values["REGISTRY_HOST_ROOT"]) / "registry.git")
+
+    def revision():
+        return subprocess.check_output(
+            [
+                "git",
+                "-c",
+                "safe.directory=" + repository,
+                "--git-dir=" + repository,
+                "rev-parse",
+                "HEAD",
+            ],
+            text=True,
+        ).strip()
+
+    before = await asyncio.to_thread(revision)
+    name = "qa-starter-" + uuid.uuid4().hex[:10]
+    base = "/admin/api/servers-dynamic/" + name
+    async with httpx.AsyncClient(
+        base_url="http://localhost:8000", timeout=120, trust_env=False
+    ) as client:
+        identity = await login(client)
+        response = await client.post(
+            "/admin/api/servers-dynamic", json={"name": name, "starter_id": "demo"}
+        )
+        assert response.status_code == 201, response.text
+        try:
+            assert response.json()["starter_version"] == "1.0.0"
+            source = (await client.get(base + "/source")).json()
+            assert source["kind"] == "starter" and not source["editing_enabled"]
+            response = await client.post(base + "/start", json={})
+            assert response.status_code == 200, response.text
+            await wait_tool(client, name + ".who_am_i")
+            result = await rpc(client, name + ".who_am_i", {})
+            assert not result["isError"] and identity["principal"]["username"] in json.dumps(result)
+            response = await client.post(
+                "/mcp",
+                json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+                headers={"Accept": "application/json, text/event-stream"},
+            )
+            tools = [
+                t for t in response.json()["result"]["tools"] if t["name"].startswith(name + ".")
+            ]
+            assert len(tools) == 2 and all(
+                "credentials" not in t["inputSchema"]["properties"] for t in tools
+            )
+            daemon = docker.from_env()
+            try:
+                worker = daemon.containers.get(container_name(name))
+                assert worker.attrs["HostConfig"]["ReadonlyRootfs"]
+                assert not worker.attrs["HostConfig"]["PortBindings"]
+                assert (
+                    not {"mcp-hub-state", "mcp-hub-audit"}
+                    & worker.attrs["NetworkSettings"]["Networks"].keys()
+                )
+            finally:
+                daemon.close()
+            assert await asyncio.to_thread(revision) == before
+        finally:
+            response = await client.delete(base)
+            assert response.status_code == 204, response.text
+    assert await asyncio.to_thread(revision) == before
 
 
 async def login(client):

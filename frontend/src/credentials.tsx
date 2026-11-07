@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, send, type Me, type Server } from './api';
+import { StarterConnection } from './starter-connection';
 import {
   Empty,
   Field,
@@ -189,7 +190,15 @@ export function PersonalCredentials({
               ))}
             </select>
           </Field>
-          {service ? (
+          {service && servers.find((s) => s.name === service)?.starter_id === 'github' ? (
+            <StarterConnection
+              key={service}
+              server={servers.find((s) => s.name === service)!}
+              run={run}
+              personalView
+              onUpdate={load}
+            />
+          ) : service ? (
             fields === undefined ? (
               <Loading label="Checking what this server needs…" />
             ) : (

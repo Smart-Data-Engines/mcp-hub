@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api, send, type Me, type Server } from './api';
+import { api, send, download, type Me, type Server } from './api';
 import { Code, EditorBoundary, Field, FormError, Loading, useTask, type Run } from './ui';
 
 const Editor = React.lazy(() => import('./editor'));
@@ -68,6 +68,7 @@ export function ServerSource({
       return next;
     });
   const canEdit =
+    !server.starter_id &&
     me.source_editing_enabled &&
     selected !== 'manifest.yaml' &&
     (me.admin || selected !== 'docker.yaml');
@@ -89,7 +90,11 @@ export function ServerSource({
   return (
     <section className="server-source">
       <h2>Source & updates</h2>
-      <p>This server runs code from your workspace's Git repository.</p>
+      <p>
+        {server.starter_id
+          ? 'This versioned starter is included with MCP Hub. It works without writing to your Git registry.'
+          : "This server runs code from your workspace's Git repository."}
+      </p>
       {locationError ? (
         <div className="callout" role="alert">
           <p>{locationError}</p>
@@ -101,7 +106,10 @@ export function ServerSource({
         <>
           <div className="source-location">
             <div className="section-title">
-              <h3>{location.provider} repository</h3>
+              <h3>
+                {location.provider}
+                {server.starter_id ? '' : ' repository'}
+              </h3>
               {location.repository_url && (
                 <a
                   className="button-link"
@@ -115,17 +123,23 @@ export function ServerSource({
             </div>
             <dl className="source-facts">
               <div>
-                <dt>Repository</dt>
+                <dt>{server.starter_id ? 'Starter' : 'Repository'}</dt>
                 <dd>{location.repository}</dd>
               </div>
               <div>
-                <dt>Folder</dt>
+                <dt>{server.starter_id ? 'Starter ID' : 'Folder'}</dt>
                 <dd>
                   <code>{location.folder}</code>
                 </dd>
               </div>
               <div>
-                <dt>{location.pinned ? 'Pinned reference' : 'Branch'}</dt>
+                <dt>
+                  {server.starter_id
+                    ? 'Included version'
+                    : location.pinned
+                      ? 'Pinned reference'
+                      : 'Branch'}
+                </dt>
                 <dd>
                   <code>{location.reference}</code>
                 </dd>
@@ -139,24 +153,50 @@ export function ServerSource({
             </dl>
           </div>
           <div className="update-guide">
-            <h3>How to update this server</h3>
-            <ol>
-              <li>Change the files in the repository folder shown above.</li>
-              <li>
-                {location.pinned ? (
-                  'Publish the changes, then choose the new source reference in Settings.'
-                ) : (
-                  <>
-                    Commit and push your changes to <strong>{location.reference}</strong>.
-                  </>
-                )}
-              </li>
-              <li>
-                Use <strong>{server.status === 'stopped' ? 'Start' : 'Restart'}</strong> above to
-                deploy the code.
-              </li>
-            </ol>
-            <p className="hint">Your repository's access permissions apply when opening it.</p>
+            {server.starter_id ? (
+              <>
+                <h3>Make it your own</h3>
+                <p>
+                  Browse the complete example below. To customize it, copy its files into your
+                  registry folder and create a Custom Python server. Included source stays pinned to
+                  its published version.
+                </p>
+                <button
+                  disabled={task.busy}
+                  onClick={() =>
+                    void task.execute(() =>
+                      download(
+                        base + '/starter-source',
+                        server.starter_id + '-starter-' + server.starter_version + '.zip',
+                      ),
+                    )
+                  }
+                >
+                  Download complete starter
+                </button>
+              </>
+            ) : (
+              <>
+                <h3>How to update this server</h3>
+                <ol>
+                  <li>Change the files in the repository folder shown above.</li>
+                  <li>
+                    {location.pinned ? (
+                      'Publish the changes, then choose the new source reference in Settings.'
+                    ) : (
+                      <>
+                        Commit and push your changes to <strong>{location.reference}</strong>.
+                      </>
+                    )}
+                  </li>
+                  <li>
+                    Use <strong>{server.status === 'stopped' ? 'Start' : 'Restart'}</strong> above
+                    to deploy the code.
+                  </li>
+                </ol>
+                <p className="hint">Your repository's access permissions apply when opening it.</p>
+              </>
+            )}
           </div>
         </>
       )}
@@ -202,7 +242,7 @@ export function ServerSource({
                       ))}
                   </select>
                 </Field>
-                {me.source_editing_enabled && !editing && (
+                {me.source_editing_enabled && !server.starter_id && !editing && (
                   <button onClick={() => setEditing(true)}>Edit source in console</button>
                 )}
                 {selected in files &&

@@ -31,6 +31,7 @@ import { ServerAccess, UsersAccess, GroupsEditor } from './access';
 import { PersonalCredentials } from './credentials';
 import { ServerSource } from './server-source';
 import { ServerEnvironment } from './server-environment';
+import { StarterConnection } from './starter-connection';
 import { Overview } from './overview';
 import { useRouter, href, type View, type Route, type Navigate } from './navigation';
 import './style.css';
@@ -204,9 +205,19 @@ function ServerDetail({
         </div>
       )}
       <p className="hint">
-        Start and Restart fetch fresh source from Git. Saving files does not change a running
-        container.
+        {server.starter_id
+          ? `Included ${server.starter_id === 'demo' ? 'Demo' : 'GitHub'} starter · version ${server.starter_version}. No registry changes are needed.`
+          : 'Start and Restart fetch fresh source from Git. Saving files does not change a running container.'}
       </p>
+      {server.starter_id === 'demo' && (
+        <div className="callout">
+          <strong>Your first tools, without an external account</strong>
+          <p>
+            Start this server, then ask your AI client to call <code>{server.name}.hello</code> or{' '}
+            <code>{server.name}.who_am_i</code>. Use Access to share the example with your team.
+          </p>
+        </div>
+      )}
       {tabs.length ? (
         <>
           <nav className="tabs" aria-label="Server sections">
@@ -305,6 +316,7 @@ function ServerDetail({
                   )}
                   <Field label="Pinned tag or commit (optional)">
                     <input
+                      disabled={!!server.starter_id}
                       value={config.pinned_ref}
                       onChange={(e) => setConfig({ ...config, pinned_ref: e.target.value })}
                     />
@@ -411,7 +423,28 @@ function ServerDetail({
               </form>
             </section>
           )}
-          {tab === 'environment' && (
+          {tab === 'environment' && server.starter_id === 'github' && (
+            <StarterConnection
+              server={server}
+              run={run}
+              onDirtyChange={setEnvironmentDirty}
+              onSaved={markSaved}
+              onUpdate={onUpdate}
+              onStart={() => act('start')}
+              onRestart={() => act('restart')}
+              busy={busy || server.status === 'starting' || server.status === 'stopping'}
+            />
+          )}
+          {tab === 'environment' && server.starter_id === 'demo' && (
+            <section>
+              <h2>Demo connection</h2>
+              <p>
+                This starter needs no API key, external account or environment variables. It uses
+                the identity verified by MCP Hub.
+              </p>
+            </section>
+          )}
+          {tab === 'environment' && !server.starter_id && (
             <ServerEnvironment
               key={server.name}
               server={server}
@@ -472,11 +505,23 @@ function Servers({
     [name, setName] = useState(''),
     [description, setDescription] = useState(''),
     [creating, setCreating] = useState(false),
+    [createTouched, setCreateTouched] = useState(false),
+    [starter, setStarter] = useState('demo'),
+    [starters, setStarters] = useState<
+      {
+        id: string;
+        name: string;
+        description: string;
+        version: string;
+        tools: string[];
+        account_required: boolean;
+      }[]
+    >([]),
     [search, setSearch] = useState(''),
     [filter, setFilter] = useState('all');
   const task = useTask(run),
     guard = useDraftGuard();
-  const markSaved = useUnsavedChanges(creating && !!(name || description));
+  const markSaved = useUnsavedChanges(creating && createTouched);
   const load = useCallback(
     async () => setServers((await api<{ servers: Server[] }>(ROOT)).servers),
     [],
@@ -484,6 +529,12 @@ function Servers({
   useEffect(() => {
     void run(load);
   }, [load, run]);
+  useEffect(() => {
+    if (creating)
+      void run(async () =>
+        setStarters((await api<{ starters: typeof starters }>('/admin/api/starters')).starters),
+      );
+  }, [creating, run]);
   const selected = servers?.find((server) => server.name === route.item);
   if (selected)
     return (
@@ -519,8 +570,10 @@ function Servers({
     if (!task.busy && (await guard())) {
       markSaved();
       setCreating(false);
+      setCreateTouched(false);
       setName('');
       setDescription('');
+      setStarter('demo');
     }
   };
   return (
@@ -534,7 +587,16 @@ function Servers({
         <button
           className="primary"
           disabled={!me.runtime_enabled}
-          onClick={() => setCreating(true)}
+          onClick={() => {
+            setStarter('demo');
+            setCreateTouched(false);
+            let suggested = 'demo',
+              counter = 2;
+            while (servers?.some((s) => s.name === suggested)) suggested = 'demo-' + counter++;
+            setName(suggested);
+            setDescription('');
+            setCreating(true);
+          }}
         >
           Create server
         </button>
@@ -617,21 +679,111 @@ function Servers({
       </section>
       {creating && (
         <Modal title="Create an MCP server" onClose={() => void closeCreate()}>
-          <p>Start with a working Python example. Your new server is private until you share it.</p>
+          <p>
+            Choose a ready starter or create your own Python server. Your new server is private
+            until you share it.
+          </p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              void task.execute(async () => {
-                const created = await send<Server>(ROOT, { name, description });
-                await load();
-                markSaved();
-                setCreating(false);
-                setName('');
-                setDescription('');
-                await navigate({ view: 'servers', item: created.name, tab: 'source' });
-              }, 'Server created. Review the example, then Start to publish its tools.');
+              void task.execute(
+                async () => {
+                  const chosen = starter;
+                  const created = await send<Server>(ROOT, {
+                    name,
+                    description,
+                    ...(chosen ? { starter_id: chosen } : {}),
+                  });
+                  await load();
+                  markSaved();
+                  setCreating(false);
+                  setCreateTouched(false);
+                  setName('');
+                  setDescription('');
+                  await navigate({
+                    view: 'servers',
+                    item: created.name,
+                    tab:
+                      chosen === 'github' ? 'environment' : chosen === 'demo' ? 'access' : 'source',
+                  });
+                  if (chosen === 'demo') {
+                    setServers((old) =>
+                      old?.map((s) => (s.name === created.name ? { ...s, status: 'starting' } : s)),
+                    );
+                    try {
+                      await send(ROOT + '/' + encodeURIComponent(created.name) + '/start', {});
+                    } finally {
+                      await load();
+                    }
+                  }
+                },
+                starter === 'demo'
+                  ? 'Demo ready. Try its hello tool in your AI client.'
+                  : starter === 'github'
+                    ? 'GitHub starter created. Add your connection, test it, then Start.'
+                    : 'Server created. Review the example, then Start to publish its tools.',
+              );
             }}
           >
+            <fieldset className="starter-picker" disabled={task.busy}>
+              <legend>Choose how to start</legend>
+              <div className="starter-grid">
+                {starters.map((item) => (
+                  <label
+                    className={`starter-card ${starter === item.id ? 'selected' : ''}`}
+                    key={item.id}
+                  >
+                    <input
+                      type="radio"
+                      name="server-starter"
+                      value={item.id}
+                      checked={starter === item.id}
+                      onChange={() => {
+                        setStarter(item.id);
+                        setCreateTouched(true);
+                        setDescription('');
+                        let suggested = item.id,
+                          count = 2;
+                        while (servers?.some((s) => s.name === suggested))
+                          suggested = item.id + '-' + count++;
+                        setName(suggested);
+                      }}
+                    />
+                    <span>
+                      <strong>{item.name}</strong>
+                      <small>{item.description}</small>
+                      <small>
+                        {item.account_required
+                          ? 'Connection required'
+                          : 'No external account needed'}{' '}
+                        · Read-only
+                      </small>
+                    </span>
+                  </label>
+                ))}
+                <label className={`starter-card ${!starter ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="server-starter"
+                    value=""
+                    checked={!starter}
+                    onChange={() => {
+                      setStarter('');
+                      setCreateTouched(true);
+                      setName('');
+                      setDescription('');
+                    }}
+                  />
+                  <span>
+                    <strong>Custom Python server</strong>
+                    <small>
+                      Write your own tools using the existing Git registry and source editor.
+                    </small>
+                  </span>
+                </label>
+              </div>
+              {starters.length === 0 && <p role="status">Loading included starters…</p>}
+            </fieldset>
             <Field
               label="Unique server name"
               hint="Lowercase letters, numbers, hyphens and underscores. This name identifies tools in AI clients."
@@ -644,7 +796,10 @@ function Servers({
                 placeholder="customer-support"
                 value={name}
                 disabled={task.busy}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setCreateTouched(true);
+                }}
               />
             </Field>
             <Field label="Description" hint="Help your team understand what this server provides.">
@@ -652,7 +807,10 @@ function Servers({
                 maxLength={1000}
                 value={description}
                 disabled={task.busy}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  setCreateTouched(true);
+                }}
                 placeholder="Search support tickets and help articles"
               />
             </Field>
@@ -662,7 +820,13 @@ function Servers({
                 Cancel
               </button>
               <button className="primary" disabled={task.busy}>
-                {task.busy ? 'Creating server…' : 'Create private server'}
+                {task.busy
+                  ? starter === 'demo'
+                    ? 'Creating and starting Demo…'
+                    : 'Creating server…'
+                  : starter === 'demo'
+                    ? 'Create and start Demo'
+                    : 'Create private server'}
               </button>
             </div>
           </form>

@@ -53,6 +53,8 @@ class Credentials:
         credentials: dict[str, Any],
         *,
         only_mine: bool | None = None,
+        compare: bool = False,
+        expected_value: str | None = None,
     ) -> None:
         clean = {key: value for key, value in credentials.items() if key not in RESERVED_ARGS}
         if not clean or not any(value is not None and value != "" for value in clean.values()):
@@ -64,6 +66,7 @@ class Credentials:
         encrypted = self.cipher.encrypt(clean)
         result = await self.store.script(
             """
+            if ARGV[6]=='1' and (redis.call('GET',KEYS[1]) or '')~=ARGV[7] then return -1 end
             if redis.call('SISMEMBER',KEYS[2],ARGV[1])==0 and redis.call('SCARD',KEYS[2])>=tonumber(ARGV[4]) then return 0 end
             if ARGV[3]=='1' and redis.call('HEXISTS',KEYS[3],ARGV[1])==0 and redis.call('HLEN',KEYS[3])>=tonumber(ARGV[5]) then return 0 end
             redis.call('SET',KEYS[1],ARGV[2]); redis.call('SADD',KEYS[2],ARGV[1])
@@ -82,12 +85,27 @@ class Credentials:
                 "" if only_mine is None else "1" if only_mine else "0",
                 self.max_services,
                 self.max_preferences,
+                "1" if compare else "0",
+                expected_value or "",
             ],
         )
+        if result == -1:
+            raise HubError(
+                "Your connection changed concurrently. Try saving again.",
+                409,
+                code="connection_changed",
+            )
         if not result:
             raise HubError(
                 "Personal connection or preference limit reached; remove an unused entry first", 429
             )
+
+    async def personal(self, principal_id: str, service: str) -> dict[str, Any]:
+        async with asyncio.timeout(2):
+            encrypted = await self.store.redis.get(
+                self.store.key(self._value_key(principal_id, service))
+            )
+        return self.cipher.decrypt(encrypted) if encrypted else {}
 
     async def delete(self, principal_id: str, service: str) -> None:
         async with self.store.redis.pipeline(transaction=True) as pipeline:

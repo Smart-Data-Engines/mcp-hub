@@ -28,6 +28,9 @@ apply after this client boundary; management access does not grant a bot tools.
 | Bots | `GET/POST /admin/api/clients` | Admin; bot starts with zero capabilities |
 | Catalog | `GET/POST /admin/api/servers` | Admin/manager; POST requests background refresh |
 | Servers | `GET/POST /admin/api/servers-dynamic`, `GET/PUT/DELETE /servers-dynamic/{name}` | Visible metadata; ownership/admin for management |
+| Included catalog | `GET /admin/api/starters` | Management-delegated authenticated client |
+| Starter source ZIP | `GET .../{name}/starter-source` | Owner/admin; included public source only |
+| GitHub connection | `GET/PATCH/DELETE .../{name}/starter-connection`, `POST .../starter-connection/test` | Server read access; own personal credentials, admin-only shared configuration and policy changes |
 | Lifecycle | `POST /servers-dynamic/{name}/{start|stop|restart}`, `GET .../logs` | Owner/admin |
 | Files | `GET/POST .../{name}/files`, `GET/DELETE .../files/{path}`, `POST .../commit` | Owner/admin; manifest read-only, Docker limits admin-only |
 | Source location | `GET .../{name}/source` | Owner/admin; sanitized repository location and running revision, without downloading code |
@@ -47,6 +50,24 @@ Abbreviated administrative paths in the table retain the `/admin/api` prefix.
 Create a private server with `{"name":"my-service","description":"..."}`. Names
 are globally unique, 1–64 ASCII lowercase letters/digits/underscore/hyphen. Create
 does not start the server. Start/Restart return the resulting status and code version.
+
+Create an included starter with `{"name":"my-github","starter_id":"github"}` or
+`{"name":"my-demo","starter_id":"demo"}`. The server chooses its supported
+version; caller-supplied source/version paths are refused. REST creation remains
+stopped; the console starts a selected Demo after creation. GitHub defaults to
+`user_only`, Demo to `global_only`. Included source cannot be edited or assigned
+arbitrary Git refs; administrator-approved container resources remain editable.
+
+`PATCH .../{name}/starter-connection` accepts
+`{"policy":"user_only","values":{"token":"PAT","repository":"owner/repository"}}`.
+`global_only` requires an administrator; implicit shared fallback is not offered.
+Omitted/blank token fields keep that scope's saved token; the complete resulting
+connection must validate. Personal updates use quota-checked atomic compare-and-set.
+GET returns configured names and the caller's non-secret repository, never tokens;
+shared metadata is admin-only. DELETE removes only the selected personal/shared
+connection and preserves the caller's account preference. The test endpoint uses
+saved values under the same credential policy, ignores per-request credential
+overrides and applies a per-principal rate budget.
 
 Batch source commit:
 

@@ -39,6 +39,32 @@ docker compose -f compose.yaml -f compose.demo.yaml down
 
 The Redis volume and `.local/` registry/source files persist across restarts.
 
+## Start with an included integration
+
+Open **MCP servers → Create server** and choose a starter:
+
+- **Demo** starts a private server with `hello` and `who_am_i`. It needs no external
+  account and demonstrates the identity verified by the Hub.
+- **GitHub** reads one GitHub.com repository, its issues and pull requests. Create
+  the private server, save your connection in **Connection**, choose **Test GitHub
+  connection**, then **Start GitHub server**. Use **Access** to grant colleagues
+  read access; each person adds their own connection under **My credentials**.
+- **Custom Python server** keeps the existing Git-based authoring flow.
+
+GitHub uses a fine-grained personal access token restricted to the selected
+repository, with Metadata, Issues and Pull requests read access. The form links
+to GitHub's token setup and checks those permissions. Tokens are encrypted and
+never shown again; leaving a saved token field blank preserves it. Administrators
+can explicitly choose a shared service-account connection instead. Changes to
+personal credentials apply to the next call; shared environment changes require a
+restart. A user's “only my credentials” preference still applies.
+
+Included starters are versioned public examples, independent of the customer's
+Git registry. They work with a read-only registry. Their complete source can be
+browsed or downloaded from **Source** and copied into a Custom server to extend.
+They use token-based service authorization; company sign-in does not automatically
+grant GitHub access. See [starter setup and extension](docs/starters.md).
+
 ## Included
 
 - Official MCP Streamable HTTP transport, stateless client-facing requests,
@@ -64,8 +90,9 @@ The Redis volume and `.local/` registry/source files persist across restarts.
 - React/TypeScript console with guided connection fields, source-repository details,
   optional code browsing/editing and the same OAuth login as MCP clients.
 
-The optional client configuration distribution and non-MCP service adapters are
-not included. Service-specific OAuth credential connectors are a separate extension;
+Client configuration distribution and an arbitrary non-MCP HTTP gateway are
+not included. The GitHub starter is an explicit MCP adapter for that service.
+Service-specific OAuth credential connectors are a separate extension;
 the included credential sources are request headers, the encrypted personal store
 and administrator-managed Global Env.
 
@@ -76,8 +103,9 @@ Choose the provider, issuer and client credentials through environment variables
 [Provider examples](docs/identity-providers.md) cover the discovery and callback
 settings for each supported provider.
 
-Production uses HTTPS, an authenticated Redis primary with AOF/noeviction, a separate
-Git source registry (GitHub API or SSH Git), and isolated Docker networks. Self-service stays disabled
+Production uses HTTPS, an authenticated Redis primary with AOF/noeviction and
+isolated Docker networks. Custom servers use a separate Git source registry
+(GitHub API or SSH Git); included starters also work with an empty read-only local registry. Self-service stays disabled
 until the runtime configuration passes its startup checks. The controller's Docker
 socket access is part of the trusted operator boundary.
 

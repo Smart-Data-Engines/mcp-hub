@@ -61,6 +61,8 @@ export interface Server {
   status: string;
   code_version: string;
   pinned_ref: string;
+  starter_id?: '' | 'demo' | 'github';
+  starter_version?: string;
   memory_mb: number;
   cpus: number;
   policy: string;
@@ -104,6 +106,7 @@ export async function api<T = Json>(
   path: string,
   init: RequestInit = {},
   retry = true,
+  asBlob = false,
 ): Promise<T> {
   const headers = new Headers(init.headers);
   if (session()) headers.set('Authorization', `Bearer ${session()!.access_token}`);
@@ -129,13 +132,26 @@ export async function api<T = Json>(
         refreshing = null;
       });
     await refreshing;
-    return api<T>(path, init, false);
+    return api<T>(path, init, false, asBlob);
   }
   if (!response.ok) {
     const data = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
     throw new Error(data.error_description || data.error || `HTTP ${response.status}`);
   }
-  return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
+  return response.status === 204
+    ? (undefined as T)
+    : asBlob
+      ? ((await response.blob()) as T)
+      : ((await response.json()) as T);
+}
+export async function download(path: string, filename: string) {
+  const blob = await api<Blob>(path, {}, true, true);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export function send<T = Json>(
   path: string,

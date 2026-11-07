@@ -24,11 +24,12 @@ from docker.models.containers import Container
 from packaging.requirements import Requirement
 from packaging.version import Version
 
+from . import starters
 from .config import Settings
 from .credentials import Credentials
 from .declarations import declaration
 from .models import HubError, ServerDefinition
-from .registry import Registry, validate_files, validate_path
+from .registry import Registry, Snapshot, validate_files, validate_path
 from .security import cap_text, scrub_text, secret_values
 from .store import Store, digest
 from .upstream import scaffold
@@ -173,9 +174,21 @@ class Runtime:
         self._require()
         if definition.name == "hub":
             raise HubError("The name hub is reserved", 409)
+        if definition.starter_id:
+            definition.starter_version = starters.VERSION
+            definition.policy = "user_only" if definition.starter_id == "github" else "global_only"
+            definition.user_env_fields = (
+                ["token", "repository"] if definition.starter_id == "github" else []
+            )
+            definition.description = (
+                definition.description or starters.CATALOG[definition.starter_id]["description"]
+            )
+            starters.snapshot(definition)
         result = await self.store.save_dynamic(
             definition.name,
-            definition.model_dump(),
+            definition.model_dump(
+                exclude={"starter_id", "starter_version"} if not definition.starter_id else set()
+            ),
             create=True,
             limit=self.settings.max_servers_per_owner,
         )
@@ -184,6 +197,8 @@ class Runtime:
         if result == -2:
             raise HubError("Owner server limit reached", 409)
         try:
+            if definition.starter_id:
+                return definition
             folder = f"{definition.owner}/{definition.name}"
             existing = await self.registry.snapshot(folder)
             if existing.files:
@@ -222,6 +237,9 @@ class Runtime:
         if value is None:
             raise HubError("Server not found", 404)
         return ServerDefinition.model_validate(value)
+
+    async def snapshot(self, definition: ServerDefinition) -> Snapshot:
+        return await starters.source_snapshot(self.registry, definition)
 
     async def _lease(self, name: str) -> str:
         token = secrets.token_urlsafe(24)
@@ -353,9 +371,7 @@ class Runtime:
             await self.upstreams.unregister(name)
             definition.status, definition.error = "starting", ""
             await self.save(definition)
-            snapshot = await self.registry.snapshot(
-                f"{definition.owner}/{name}", definition.pinned_ref
-            )
+            snapshot = await self.snapshot(definition)
             for required in (
                 "server.py",
                 "requirements.txt",
@@ -478,14 +494,15 @@ class Runtime:
 
     async def delete(self, name: str) -> None:
         definition = await self.stop(name)
-        snapshot = await self.registry.snapshot(f"{definition.owner}/{name}")
-        if snapshot.files:
-            await self.registry.commit(
-                f"{definition.owner}/{name}",
-                {filename: None for filename in snapshot.files},
-                f"Delete MCP server {name}",
-                snapshot.commit,
-            )
+        if not definition.starter_id:
+            snapshot = await self.registry.snapshot(f"{definition.owner}/{name}")
+            if snapshot.files:
+                await self.registry.commit(
+                    f"{definition.owner}/{name}",
+                    {filename: None for filename in snapshot.files},
+                    f"Delete MCP server {name}",
+                    snapshot.commit,
+                )
         await self.store.delete_dynamic(name)
         await asyncio.to_thread(self._clear_source_cache, name)
         await self.store.delete("mcp:env:" + name)

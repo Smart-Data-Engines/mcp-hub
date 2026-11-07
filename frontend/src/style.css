@@ -2163,3 +2163,85 @@ h1:focus,
     align-items: start;
   }
 }
+
+/* Included starters use compact radio cards without stretching inputs. */
+.starter-picker,
+.starter-mode {
+  border: 0;
+  padding: 0;
+  margin: 0 0 1.4rem;
+  min-width: 0;
+}
+.starter-picker legend,
+.starter-mode legend {
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+.starter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.starter-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 1rem;
+  border: 1px solid var(--line, #d7e2df);
+  border-radius: 10px;
+  cursor: pointer;
+  min-width: 0;
+}
+.starter-card.selected,
+.starter-card:has(input:checked) {
+  border-color: var(--accent, #4c9587);
+  background: #eff8f3;
+}
+.starter-card input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0.15rem 0 0;
+  padding: 0;
+}
+.starter-card span {
+  flex: 1;
+  min-width: 0;
+}
+.starter-card strong,
+.starter-card small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.starter-card small {
+  margin-top: 0.35rem;
+  color: var(--muted, #58736f);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.starter-mode {
+  display: grid;
+  gap: 0.6rem;
+}
+.starter-help {
+  background: #f5f8f7;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+.starter-help p {
+  margin: 0.4rem 0 0.6rem;
+}
+.starter-connection-actions {
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+.callout.success {
+  border-color: #6da894;
+  background: #eff8f3;
+}
+@media (max-width: 800px) {
+  .starter-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hmac
+import io
 import json
 import time
+import zipfile
 from typing import Any
 
 import yaml
@@ -12,6 +14,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
+from . import starters
 from .declarations import declaration
 from .http import body, context
 from .models import ALL_CAPS, NAME, HubError, ServerDefinition, visible
@@ -409,7 +412,7 @@ def management_routes() -> list[Route]:
                 }
             )
         data = await body(request)
-        allowed = {"name", "description", "visibility", "shared_with", "autostart"}
+        allowed = {"name", "description", "visibility", "shared_with", "autostart", "starter_id"}
         if access.admin:
             allowed |= {"owner", "memory_mb", "cpus"}
         if set(data) - allowed:
@@ -445,13 +448,18 @@ def management_routes() -> list[Route]:
         if set(data) - allowed:
             raise HubError("Unsupported or privileged server fields", 403)
         updated = ServerDefinition.model_validate({**definition.model_dump(), **data})
+        if definition.starter_id and updated.pinned_ref:
+            raise HubError(
+                "Included starter versions are pinned by the Hub; copy the source to a Custom server to use Git references",
+                422,
+            )
         if updated.call_timeout and updated.call_timeout > hub.settings.upstream_call_tool_timeout:
             raise HubError("Per-server timeout cannot exceed the deployment call limit", 422)
         if updated.read_timeout is not None and updated.read_timeout >= (
             updated.call_timeout or hub.settings.upstream_call_tool_timeout
         ):
             raise HubError("Per-request budget must be below the gateway ceiling", 422)
-        if {"memory_mb", "cpus"} & set(data):
+        if {"memory_mb", "cpus"} & set(data) and not definition.starter_id:
             await hub.registry.commit(
                 f"{definition.owner}/{definition.name}",
                 {
@@ -491,7 +499,7 @@ def management_routes() -> list[Route]:
         hub = request.app.state.hub
         folder = f"{definition.owner}/{definition.name}"
         if request.method == "GET":
-            snapshot = await hub.registry.snapshot(folder)
+            snapshot = await starters.source_snapshot(hub.registry, definition)
             path = request.path_params.get("path")
             if path:
                 validate_path(path)
@@ -501,6 +509,11 @@ def management_routes() -> list[Route]:
                     {"path": path, "content": snapshot.files[path], "commit": snapshot.commit}
                 )
             return JSONResponse({"files": snapshot.files, "commit": snapshot.commit})
+        if definition.starter_id:
+            raise HubError(
+                "Included starter source is versioned and read-only. Copy these files into your registry to create a Custom server",
+                403,
+            )
         data: dict[str, Any] = (
             await body(request)
             if request.method != "DELETE"
@@ -532,6 +545,13 @@ def management_routes() -> list[Route]:
 
     async def source(request: Request) -> Response:
         definition, _ = await owner(request)
+        if definition.starter_id:
+            return JSONResponse(
+                {
+                    **starters.source_location(definition),
+                    "running_revision": definition.code_version,
+                }
+            )
         return JSONResponse(
             {
                 **source_location(
@@ -543,10 +563,28 @@ def management_routes() -> list[Route]:
             }
         )
 
+    async def starter_source(request: Request) -> Response:
+        definition, _ = await owner(request)
+        if not definition.starter_id:
+            raise HubError("This server does not use an included starter", 404)
+        hub = request.app.state.hub
+        snapshot = await starters.source_snapshot(hub.registry, definition)
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name, value in sorted(snapshot.files.items()):
+                archive.writestr(name, value)
+        return Response(
+            output.getvalue(),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{definition.starter_id}-starter-{definition.starter_version}.zip"'
+            },
+        )
+
     async def env(request: Request) -> Response:
         definition, access = await owner(request)
         hub = request.app.state.hub
-        snapshot = await hub.registry.snapshot(f"{definition.owner}/{definition.name}")
+        snapshot = await starters.source_snapshot(hub.registry, definition)
         fields = declaration(snapshot.files.get("env.yaml", ""))
         if request.url.path.endswith("/env/values"):
             await role(request)
@@ -600,7 +638,7 @@ def management_routes() -> list[Route]:
         access = await hub.gateway.access(ctx)
         if not access.capabilities(definition.name):
             raise HubError("Server access required", 403)
-        snapshot = await hub.registry.snapshot(f"{definition.owner}/{definition.name}")
+        snapshot = await starters.source_snapshot(hub.registry, definition)
         fields = declaration(snapshot.files.get("env.yaml", ""))
         return JSONResponse({"fields": fields.get("user_env", [])})
 
@@ -616,6 +654,10 @@ def management_routes() -> list[Route]:
             "global_only",
         }:
             raise HubError("Policy must be both, user_only or global_only", 422)
+        if definition.starter_id == "github" and data["policy"] == "both":
+            raise HubError(
+                "Choose personal connections or a shared connection for this starter", 422
+            )
         definition.policy = data["policy"]
         await request.app.state.hub.runtime.save(definition, fields={"policy"})
         return JSONResponse({"policy": definition.policy})
@@ -708,7 +750,9 @@ def management_routes() -> list[Route]:
         )
 
     prefix = "/admin/api/servers-dynamic"
-    return [
+    from .starter_api import starter_routes
+
+    return starter_routes() + [
         Route("/admin/api/whoami", whoami),
         Route("/admin/api/users", users),
         Route("/admin/api/access", access_directory),
@@ -740,6 +784,7 @@ def management_routes() -> list[Route]:
         Route(prefix + "/{name}", dynamic, methods=["GET", "PUT", "DELETE"]),
         Route(prefix + "/{name}/logs", logs),
         Route(prefix + "/{name}/source", source),
+        Route(prefix + "/{name}/starter-source", starter_source),
         Route(prefix + "/{name}/files", files, methods=["GET", "POST"]),
         Route(prefix + "/{name}/files/{path:path}", files, methods=["GET", "DELETE"]),
         Route(prefix + "/{name}/commit", files, methods=["POST"]),
