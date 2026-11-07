@@ -183,3 +183,63 @@ test('starter selection and GitHub setup fit mobile and pass accessibility check
     await request(page, base, 'DELETE');
   }
 });
+
+test('a colleague configures only their own GitHub account after receiving read access', async ({
+  page,
+  browser,
+}) => {
+  const context = await browser.newContext(),
+    colleague = await context.newPage();
+  await signIn(colleague, 'Analyst');
+  const person = await request<{ principal: { id: string } }>(colleague, '/admin/api/whoami');
+  await signIn(page);
+  const name = 'ui-starter-person-' + Date.now().toString(36),
+    base = '/admin/api/servers-dynamic/' + name;
+  expect(
+    (await request(page, '/admin/api/servers-dynamic', 'POST', { name, starter_id: 'github' }))
+      .status,
+  ).toBe(201);
+  try {
+    expect(
+      (
+        await request(page, base + '/starter-connection', 'PATCH', {
+          values: { token: 'synthetic-owner-token', repository: 'owner/project' },
+        })
+      ).status,
+    ).toBe(204);
+    expect(
+      (
+        await request(page, `/admin/api/users/${person.data.principal.id}/access/${name}`, 'PUT', {
+          mode: 'grant',
+          caps: ['read'],
+        })
+      ).status,
+    ).toBe(200);
+    await colleague.goto(new URL('/admin/#credentials/' + name, colleague.url()).toString());
+    await expect(
+      colleague.getByRole('heading', { name: 'GitHub connection', exact: true }),
+    ).toBeVisible();
+    await expect(colleague.getByLabel('GitHub repository', { exact: true })).toHaveValue('');
+    await expect(colleague.getByRole('radio', { name: /Use a shared account/ })).toHaveCount(0);
+    await colleague.getByLabel('GitHub repository', { exact: true }).fill('colleague/project');
+    await colleague.getByLabel('GitHub token', { exact: true }).fill('synthetic-colleague-token');
+    await colleague.getByRole('button', { name: 'Save GitHub connection' }).click();
+    await expect(colleague.getByLabel('GitHub token', { exact: true })).toHaveValue('');
+    const own = await request<{ personal: { repository: string } }>(
+      colleague,
+      base + '/starter-connection',
+    );
+    const original = await request<{ personal: { repository: string } }>(
+      page,
+      base + '/starter-connection',
+    );
+    expect(own.data.personal.repository).toBe('colleague/project');
+    expect(original.data.personal.repository).toBe('owner/project');
+    expect(JSON.stringify(own.data)).not.toContain('synthetic-owner-token');
+  } finally {
+    await request(colleague, '/credentials/' + name, 'DELETE');
+    await request(page, '/credentials/' + name, 'DELETE');
+    await request(page, base, 'DELETE');
+    await context.close();
+  }
+});
