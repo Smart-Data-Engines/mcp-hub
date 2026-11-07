@@ -51,6 +51,7 @@ test('publish a private adapter, give a colleague access, connect credentials an
   const name = 'ui-' + Date.now().toString(36);
   await navigate(page, 'MCP servers');
   await page.getByRole('button', { name: 'Create server', exact: true }).click();
+  await page.getByRole('radio', { name: /Custom Python server/ }).check();
   await page.getByLabel('Unique server name', { exact: true }).fill(name);
   await page.getByLabel('Description', { exact: true }).fill('Browser acceptance adapter');
   await page.getByRole('button', { name: 'Create private server', exact: true }).click();

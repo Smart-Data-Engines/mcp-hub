@@ -61,6 +61,7 @@ def secret_values(value: Any) -> tuple[str, ...]:
                     "region",
                     "database",
                     "schema",
+                    "repository",
                     "timeout",
                 }
                 if secret_key(str(key)) or not metadata:
