@@ -61,7 +61,7 @@ export interface Server {
   status: string;
   code_version: string;
   pinned_ref: string;
-  starter_id?: '' | 'demo' | 'github';
+  starter_id?: '' | 'demo' | 'github' | 'notion';
   starter_version?: string;
   memory_mb: number;
   cpus: number;

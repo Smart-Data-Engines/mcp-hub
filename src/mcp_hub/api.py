@@ -654,7 +654,7 @@ def management_routes() -> list[Route]:
             "global_only",
         }:
             raise HubError("Policy must be both, user_only or global_only", 422)
-        if definition.starter_id == "github" and data["policy"] == "both":
+        if starters.connection_fields(definition.starter_id) and data["policy"] == "both":
             raise HubError(
                 "Choose personal connections or a shared connection for this starter", 422
             )

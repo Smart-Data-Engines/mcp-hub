@@ -35,12 +35,12 @@ async def test_starters_create_read_and_delete_without_any_registry_access(harne
     monkeypatch.setattr(harness.hub.registry, "commit", forbidden)
     harness.hub.settings.registry_read_only = True
     catalog = await harness.client.get("/admin/api/starters", headers=harness.headers)
-    assert [s["id"] for s in catalog.json()["starters"]] == ["demo", "github"]
-    for starter in ["demo", "github"]:
+    assert [s["id"] for s in catalog.json()["starters"]] == ["demo", "github", "notion"]
+    for starter in ["demo", "github", "notion"]:
         name = starter + "-included"
         definition = await create(harness, monkeypatch, starter, name)
         assert definition["starter_version"] == "1.0.0"
-        assert definition["policy"] == ("user_only" if starter == "github" else "global_only")
+        assert definition["policy"] == ("global_only" if starter == "demo" else "user_only")
         base = "/admin/api/servers-dynamic/" + name
         info = (await harness.client.get(base + "/source", headers=harness.headers)).json()
         assert info["kind"] == "starter" and not info["editing_enabled"]

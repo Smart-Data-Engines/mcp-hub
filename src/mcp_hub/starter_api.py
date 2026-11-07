@@ -1,39 +1,86 @@
-"""Starter discovery and explicit, permission-checked GitHub connection setup."""
+"""Starter discovery and explicit, permission-checked provider connections."""
 
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any
 
+import httpx
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 from .http import body, context
 from .models import HubError
-from .starter_code.v1.github_client import connection, test_connection
+from .security import scrub, secret_values
+from .starter_code.v1 import github_client, notion_client
 from .starters import catalog
 from .store import digest
 
 
-async def github_access(request: Request):
+@dataclass(frozen=True)
+class Provider:
+    name: str
+    fields: tuple[tuple[str, str], ...]
+    validate: Callable[[dict[str, Any]], Any]
+    test: Callable[[httpx.AsyncClient, dict[str, Any]], Awaitable[dict]]
+    token_url: str
+    guide_url: str
+    permissions: str
+
+    def shared_values(self, values: dict) -> dict:
+        return {name: values.get(env, "") for name, env in self.fields}
+
+
+PROVIDERS = {
+    "github": Provider(
+        "GitHub",
+        (("token", "GITHUB_TOKEN"), ("repository", "GITHUB_REPOSITORY")),
+        github_client.connection,
+        github_client.test_connection,
+        "https://github.com/settings/personal-access-tokens/new",
+        "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+        "Select the repository and give Metadata, Issues and Pull requests read access. Your organization may require approval.",
+    ),
+    "notion": Provider(
+        "Notion",
+        (("token", "NOTION_TOKEN"),),
+        notion_client.connection,
+        notion_client.test_connection,
+        "https://www.notion.so/profile/integrations",
+        "https://developers.notion.com/reference/capabilities",
+        "Create an internal Notion connection with Read content capability. In Notion, open each page or database you want to share, choose Connections, and add this connection. Content in child pages is included according to Notion's sharing rules.",
+    ),
+}
+
+
+async def provider_access(request: Request):
     hub, ctx = request.app.state.hub, context(request)
     definition = await hub.runtime.definition(request.path_params["name"])
     access = await hub.gateway.access(ctx)
     if not access.permits(definition.name, "read"):
         raise HubError("Read access to this server is required", 403)
-    if definition.starter_id != "github":
-        raise HubError("This server does not use the GitHub starter", 404)
-    return hub, ctx, definition, access
+    provider = PROVIDERS.get(definition.starter_id)
+    if provider is None:
+        raise HubError("This server does not use a provider starter", 404)
+    return hub, ctx, definition, access, provider
 
 
-def safe_status(values: dict[str, Any]) -> dict:
+def safe_status(values: dict[str, Any], provider: Provider) -> dict:
     return {
         "configured": [
             name
-            for name in ["token", "repository"]
+            for name, _ in provider.fields
             if isinstance(values.get(name), str) and values[name]
         ],
-        "repository": values.get("repository", "")
-        if isinstance(values.get("repository", ""), str)
-        else "",
+        **(
+            {
+                "repository": values.get("repository", "")
+                if isinstance(values.get("repository", ""), str)
+                else ""
+            }
+            if any(name == "repository" for name, _ in provider.fields)
+            else {}
+        ),
     }
 
 
@@ -46,21 +93,20 @@ async def write_budget(hub, principal_id: str) -> None:
 
 
 async def connection_info(request: Request) -> Response:
-    hub, ctx, definition, access = await github_access(request)
+    hub, ctx, definition, access, provider = await provider_access(request)
     personal = await hub.credentials.personal(ctx.principal.id, definition.name)
     shared = await hub.credentials.global_env(definition.name) if access.admin else {}
-    saved = {
-        "token": shared.get("GITHUB_TOKEN", ""),
-        "repository": shared.get("GITHUB_REPOSITORY", ""),
-    }
+    saved = provider.shared_values(shared)
     running = (
         await hub.credentials.global_env(definition.name, running=True) if access.admin else {}
     )
     return JSONResponse(
         {
             "policy": definition.policy,
-            "personal": safe_status(personal),
-            "shared": safe_status(saved),
+            "provider": definition.starter_id,
+            "required_fields": [name for name, _ in provider.fields],
+            "personal": safe_status(personal, provider),
+            "shared": safe_status(saved, provider),
             "can_manage": access.admin or definition.owner == ctx.principal.id,
             "can_change_policy": access.admin,
             "can_configure_shared": access.admin,
@@ -68,19 +114,16 @@ async def connection_info(request: Request) -> Response:
                 definition.name, False
             ),
             "restart_required": definition.status == "running"
-            and any(
-                shared.get(k, "") != running.get(k, "")
-                for k in ["GITHUB_TOKEN", "GITHUB_REPOSITORY"]
-            ),
-            "token_url": "https://github.com/settings/personal-access-tokens/new",
-            "guide_url": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
-            "permissions": "Select the repository and give Metadata, Issues and Pull requests read access. Your organization may require approval.",
+            and any(shared.get(k, "") != running.get(k, "") for _, k in provider.fields),
+            "token_url": provider.token_url,
+            "guide_url": provider.guide_url,
+            "permissions": provider.permissions,
         }
     )
 
 
 async def write_connection(request: Request) -> Response:
-    hub, ctx, definition, access = await github_access(request)
+    hub, ctx, definition, access, provider = await provider_access(request)
     await write_budget(hub, ctx.principal.id)
     data = await body(request)
     if set(data) - {"policy", "values"}:
@@ -95,21 +138,19 @@ async def write_connection(request: Request) -> Response:
     values = data.get("values", {})
     if (
         not isinstance(values, dict)
-        or set(values) - {"token", "repository"}
+        or set(values) - {name for name, _ in provider.fields}
         or any(not isinstance(v, str) or len(v) > 4096 for v in values.values())
     ):
-        raise HubError("Connection values must contain only token and repository text fields", 422)
+        raise HubError("Use only the connection's declared text fields", 422)
     changes = {k: v.strip() for k, v in values.items() if v.strip()}
     if policy == "global_only":
         shared = await hub.credentials.global_env(definition.name)
-        merged = {
-            "token": shared.get("GITHUB_TOKEN", ""),
-            "repository": shared.get("GITHUB_REPOSITORY", ""),
-            **changes,
-        }
-        connection(merged)
+        merged = {**provider.shared_values(shared), **changes}
+        provider.validate(merged)
         await hub.credentials.patch_global_env(
-            definition.name, {"GITHUB_" + k.upper(): v for k, v in changes.items()}, []
+            definition.name,
+            {env: changes[name] for name, env in provider.fields if name in changes},
+            [],
         )
     else:
         for _ in range(8):
@@ -117,7 +158,7 @@ async def write_connection(request: Request) -> Response:
             original = await hub.store.redis.get(key)
             merged = hub.credentials.cipher.decrypt(original) if original else {}
             merged.update(changes)
-            connection(merged)
+            provider.validate(merged)
             try:
                 await hub.credentials.save(
                     ctx.principal.id, definition.name, merged, compare=True, expected_value=original
@@ -135,13 +176,13 @@ async def write_connection(request: Request) -> Response:
 
 
 async def remove_connection(request: Request) -> Response:
-    hub, ctx, definition, access = await github_access(request)
+    hub, ctx, definition, access, provider = await provider_access(request)
     await write_budget(hub, ctx.principal.id)
     if definition.policy == "global_only":
         if not access.admin:
             raise HubError("Only an administrator may remove the shared connection", 403)
         await hub.credentials.patch_global_env(
-            definition.name, {}, ["GITHUB_TOKEN", "GITHUB_REPOSITORY"]
+            definition.name, {}, [env for _, env in provider.fields]
         )
     else:
         await hub.credentials.delete(ctx.principal.id, definition.name)
@@ -149,7 +190,7 @@ async def remove_connection(request: Request) -> Response:
 
 
 async def check_connection(request: Request) -> Response:
-    hub, ctx, definition, _ = await github_access(request)
+    hub, ctx, definition, _, provider = await provider_access(request)
     allowed, retry = await hub.store.rate("starter-tests:" + digest(ctx.principal.id), 10, 60)
     if not allowed:
         raise HubError("Connection test limit reached. Try again shortly", 429, retry_after=retry)
@@ -158,17 +199,14 @@ async def check_connection(request: Request) -> Response:
         definition.name,
         definition.policy,
         None,
-        required_fields=["token", "repository"],
+        required_fields=[name for name, _ in provider.fields],
     )
     if resolved.source == "none":
         shared = await hub.credentials.global_env(definition.name)
-        values = {
-            "token": shared.get("GITHUB_TOKEN", ""),
-            "repository": shared.get("GITHUB_REPOSITORY", ""),
-        }
+        values = provider.shared_values(shared)
     else:
         values = resolved.credentials
-    result = await test_connection(hub.http, values)
+    result = scrub(await provider.test(hub.http, values), secrets=secret_values(values))
     return JSONResponse(
         {**result, "connection": "shared" if resolved.source == "none" else "personal"}
     )

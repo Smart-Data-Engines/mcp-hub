@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, send, type Server } from './api';
 import { Field, FormError, Loading, useConfirm, useTask, useUnsavedChanges, type Run } from './ui';
 
-type Saved = { configured: string[]; repository: string };
+type Saved = { configured: string[]; repository?: string };
 interface ConnectionInfo {
   policy: string;
   personal: Saved;
@@ -19,7 +19,8 @@ interface ConnectionInfo {
 interface TestResult {
   ok: boolean;
   account: string;
-  repository: string;
+  repository?: string;
+  shared_content_found?: boolean;
   message: string;
   note: string;
 }
@@ -45,6 +46,8 @@ export function StarterConnection({
   busy?: boolean;
   personalView?: boolean;
 }) {
+  const notion = server.starter_id === 'notion';
+  const provider = notion ? 'Notion' : 'GitHub';
   const base =
     '/admin/api/servers-dynamic/' + encodeURIComponent(server.name) + '/starter-connection';
   const [info, setInfo] = useState<ConnectionInfo>();
@@ -59,7 +62,8 @@ export function StarterConnection({
   const saved = policy === 'global_only' ? info?.shared : info?.personal;
   const canEdit = policy !== 'global_only' || (!personalView && info?.can_configure_shared);
   const dirty =
-    !!token || (!!info && (repository !== (saved?.repository || '') || policy !== info.policy));
+    !!token ||
+    (!!info && ((!notion && repository !== (saved?.repository || '')) || policy !== info.policy));
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   const markSaved = useUnsavedChanges(dirty);
@@ -92,16 +96,18 @@ export function StarterConnection({
         <button onClick={() => void load()}>Retry connection</button>
       </div>
     ) : (
-      <Loading label="Loading GitHub connection…" />
+      <Loading label={`Loading ${provider} connection…`} />
     );
   const disabled = busy || task.busy;
-  const ready = saved?.configured.includes('token') && saved?.configured.includes('repository');
+  const ready =
+    saved?.configured.includes('token') && (notion || saved?.configured.includes('repository'));
   return (
     <section className="starter-connection">
-      <h2>GitHub connection</h2>
+      <h2>{provider} connection</h2>
       <p>
-        This starter reads one GitHub.com repository, its issues and pull requests. It does not
-        change your repository.
+        {notion
+          ? 'Read pages, blocks and data sources accessible to your Notion connection. Create an internal connection with Read content access, then share selected pages with it.'
+          : 'This starter reads one GitHub.com repository, its issues and pull requests. It does not change your repository.'}
       </p>
       {loadError && (
         <div className="callout" role="alert">
@@ -110,23 +116,29 @@ export function StarterConnection({
       )}
       {!personalView && info.can_change_policy ? (
         <fieldset disabled={disabled} className="starter-mode">
-          <legend>Who provides the GitHub account?</legend>
+          <legend>
+            {notion ? 'Who provides Notion access?' : 'Who provides the GitHub account?'}
+          </legend>
           {[
             [
               'user_only',
-              'Each person uses their own account',
-              'Recommended: everyone adds their own repository and token.',
+              notion
+                ? 'Each person saves their own connection'
+                : 'Each person uses their own account',
+              notion
+                ? 'Recommended: each person saves a token with access to the pages they need.'
+                : 'Recommended: everyone adds their own repository and token.',
             ],
             [
               'global_only',
-              'Use a shared account',
+              notion ? 'Use a shared connection' : 'Use a shared account',
               'People granted access use the account configured by an administrator.',
             ],
           ].map(([value, label, hint]) => (
             <label className="starter-card" key={value}>
               <input
                 type="radio"
-                name="github-connection-mode"
+                name={`${server.name}-connection-mode`}
                 value={value}
                 checked={policy === value}
                 onChange={() =>
@@ -160,7 +172,13 @@ export function StarterConnection({
       ) : (
         <div className="connection-summary">
           <div>
-            <h3>{policy === 'global_only' ? 'Shared connection' : 'Your personal account'}</h3>
+            <h3>
+              {policy === 'global_only'
+                ? 'Shared connection'
+                : notion
+                  ? 'Your personal connection'
+                  : 'Your personal account'}
+            </h3>
             <p>
               {policy === 'global_only'
                 ? 'An administrator manages this account. Your Hub permissions still apply.'
@@ -178,7 +196,7 @@ export function StarterConnection({
               void (async () => {
                 if (
                   !(await confirm({
-                    title: 'Use the shared GitHub account?',
+                    title: `Use the shared ${provider} ${notion ? 'connection' : 'account'}?`,
                     description:
                       'This changes only your preference for this server. You will use its administrator-managed account.',
                     confirmLabel: 'Use shared account',
@@ -198,7 +216,9 @@ export function StarterConnection({
       )}
       {!info.only_mine && (
         <details className="advanced-panel">
-          <summary>Personal account preference</summary>
+          <summary>
+            {notion ? 'Personal connection preference' : 'Personal account preference'}
+          </summary>
           <p>
             You can require your own account even if an administrator later selects a shared
             connection.
@@ -224,7 +244,10 @@ export function StarterConnection({
               async () => {
                 await send(
                   base,
-                  { policy, values: { repository, ...(token ? { token } : {}) } },
+                  {
+                    policy,
+                    values: { ...(!notion ? { repository } : {}), ...(token ? { token } : {}) },
+                  },
                   'PATCH',
                 );
                 setToken('');
@@ -236,35 +259,39 @@ export function StarterConnection({
                 await onUpdate?.();
               },
               policy === 'global_only'
-                ? 'Shared GitHub connection saved'
-                : 'Your GitHub connection saved',
+                ? `Shared ${provider} connection saved`
+                : `Your ${provider} connection saved`,
             );
           }}
         >
+          {!notion && (
+            <Field
+              label="GitHub repository"
+              hint="Use owner/repository, for example octocat/Hello-World. Only this repository is used by the starter."
+            >
+              <input
+                required
+                maxLength={201}
+                placeholder="octocat/Hello-World"
+                spellCheck={false}
+                autoComplete="off"
+                value={repository}
+                disabled={disabled}
+                onChange={(event) => {
+                  setRepository(event.target.value);
+                  setResult(undefined);
+                }}
+              />
+            </Field>
+          )}
           <Field
-            label="GitHub repository"
-            hint="Use owner/repository, for example octocat/Hello-World. Only this repository is used by the starter."
-          >
-            <input
-              required
-              maxLength={201}
-              placeholder="octocat/Hello-World"
-              spellCheck={false}
-              autoComplete="off"
-              value={repository}
-              disabled={disabled}
-              onChange={(event) => {
-                setRepository(event.target.value);
-                setResult(undefined);
-              }}
-            />
-          </Field>
-          <Field
-            label="GitHub token"
+            label={`${provider} token`}
             hint={
               saved?.configured.includes('token')
                 ? 'A token is saved and hidden. Leave this blank to keep it.'
-                : 'Create a fine-grained personal access token for the selected repository.'
+                : notion
+                  ? 'Use the secret token of an internal Notion connection with Read content capability.'
+                  : 'Create a fine-grained personal access token for the selected repository.'
             }
           >
             <input
@@ -278,7 +305,7 @@ export function StarterConnection({
               placeholder={
                 saved?.configured.includes('token')
                   ? 'Saved — leave blank to keep'
-                  : 'Paste your GitHub token'
+                  : `Paste your ${provider} token`
               }
               onChange={(event) => {
                 setToken(event.target.value);
@@ -301,15 +328,15 @@ export function StarterConnection({
               {info.permissions} For an account shared by a team, use a dedicated service account.
             </p>
             <a href={info.token_url} target="_blank" rel="noopener noreferrer">
-              Create a GitHub token ↗
+              {notion ? 'Create a Notion connection' : 'Create a GitHub token'} ↗
             </a>
             {' · '}
             <a href={info.guide_url} target="_blank" rel="noopener noreferrer">
-              Token instructions ↗
+              {notion ? 'Connection permissions' : 'Token instructions'} ↗
             </a>
           </div>
           <button className="primary" disabled={disabled || !dirty}>
-            {task.busy ? 'Saving…' : 'Save GitHub connection'}
+            {task.busy ? 'Saving…' : `Save ${provider} connection`}
           </button>
         </form>
       )}
@@ -339,7 +366,7 @@ export function StarterConnection({
             })
           }
         >
-          {task.busy ? 'Working…' : 'Test GitHub connection'}
+          {task.busy ? 'Working…' : `Test ${provider} connection`}
         </button>
         {canEdit && ready && (
           <button
@@ -349,11 +376,13 @@ export function StarterConnection({
               void (async () => {
                 if (
                   !(await confirm({
-                    title: 'Remove this GitHub connection?',
+                    title: `Remove this ${provider} connection?`,
                     description:
                       policy === 'global_only'
                         ? 'The shared account will no longer be configured. Restart a running server to apply the removal.'
-                        : 'Your saved token and repository will be removed. Other people are unaffected.',
+                        : notion
+                          ? 'Your saved Notion token will be removed. Other people are unaffected.'
+                          : 'Your saved token and repository will be removed. Other people are unaffected.',
                     confirmLabel: 'Remove connection',
                     danger: true,
                   }))
@@ -366,7 +395,7 @@ export function StarterConnection({
                   markSaved();
                   onSaved?.();
                   await load();
-                }, 'GitHub connection removed');
+                }, `${provider} connection removed`);
               })()
             }
           >
@@ -375,7 +404,7 @@ export function StarterConnection({
         )}
         {!personalView && info.can_manage && onStart && server.status !== 'running' && (
           <button className="primary" disabled={disabled || dirty} onClick={() => void onStart()}>
-            Start GitHub server
+            Start {provider} server
           </button>
         )}
       </div>
@@ -385,15 +414,20 @@ export function StarterConnection({
         </p>
       )}
       {result && (
-        <div className="callout success" role="status">
+        <div
+          className={`callout ${result.shared_content_found === false ? '' : 'success'}`}
+          role="status"
+        >
           <strong>{result.message}</strong>
           <p>{result.note}</p>
           <p>
-            {personalView
-              ? 'Your connection is ready. Use this server’s permitted tools in your AI client.'
-              : server.status === 'running'
-                ? 'Your connection is ready. Use Access to choose who may use its read tools.'
-                : 'Next: start the server, then use Access to choose who may use its read tools.'}
+            {result.shared_content_found === false
+              ? 'Next: share a page with this connection in Notion, then test again.'
+              : personalView
+                ? 'Your connection is ready. Use this server’s permitted tools in your AI client.'
+                : server.status === 'running'
+                  ? 'Your connection is ready. Use Access to choose who may use its read tools.'
+                  : 'Next: start the server, then use Access to choose who may use its read tools.'}
           </p>
         </div>
       )}
