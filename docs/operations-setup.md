@@ -97,3 +97,9 @@ native snapshot without global cluster state. Never copy a live search-engine
 data directory or modify its snapshot repository by hand. Repeat an audit snapshot
 restore after search-engine upgrades. Update both the app and worker images when
 runtime security dependencies change.
+
+For a Debian security rebuild, review the base image digests in the Dockerfile
+and run `docker compose --profile build build --pull --no-cache hub upstream-image`.
+The build applies the available Bookworm updates. Both release images inherit
+the runtime verified by `deploy/check-bookworm-security.sh`, which checks the
+minimum patched Debian revisions and accepts later updates.

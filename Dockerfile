@@ -1,13 +1,23 @@
-FROM node:22-bookworm-slim AS console
+FROM node:22-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS console
+RUN --mount=type=tmpfs,target=/var/cache/apt/archives \
+    apt-get -o APT::Update::Error-Mode=any update \
+    && DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends --no-remove upgrade \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /console
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
-FROM python:3.13-slim-bookworm AS application
-COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /usr/local/bin/uv
-RUN --mount=type=tmpfs,target=/var/cache/apt/archives apt-get update && apt-get install -y --no-install-recommends git openssh-client ca-certificates && rm -rf /var/lib/apt/lists/*
+FROM python:3.13-slim-bookworm@sha256:a5a7017efc5969e00ae2b91c8eb0631049a569652aa4ffc4501769049ae45c72 AS application
+COPY --from=ghcr.io/astral-sh/uv:0.13.1@sha256:4a1f3666816dafadd20ceb71eac9a7d56d7ef30279f7d64048519ab901ada336 /uv /usr/local/bin/uv
+RUN --mount=type=tmpfs,target=/var/cache/apt/archives \
+    --mount=type=bind,source=deploy/check-bookworm-security.sh,target=/tmp/check-bookworm-security.sh \
+    apt-get -o APT::Update::Error-Mode=any update \
+    && DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends --no-remove install git openssh-client ca-certificates \
+    && DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends --no-remove upgrade \
+    && sh /tmp/check-bookworm-security.sh \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=tmpfs,target=/tmp uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file /tmp/requirements.txt && uv pip install --system --no-cache --require-hashes -r /tmp/requirements.txt
