@@ -23,7 +23,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: '0.13.1'
+          version: '0.13.10'
       - run: python scripts/check_private_boundaries.py
       - run: uv sync --frozen --extra dev
       - if: matrix.python == '3.13'
@@ -66,7 +66,7 @@ jobs:
           python-version: '3.13'
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: '0.13.1'
+          version: '0.13.10'
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '22'
